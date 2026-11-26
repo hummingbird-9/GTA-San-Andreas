@@ -45,7 +45,7 @@ pub(crate) fn iteration() -> u32 {
 /// Whether a main-loop step's detail (`gGameState A → B ...`) reports a state change.
 fn state_changed(d: &str) -> bool {
     let Some((a, b)) = d.split_once('→') else { return false };
-    a.split_whitespace().last() != b.split_whitespace().next()
+    a.split_whitespace().last() != b.split_whitespace().next().map(|s| s.trim_end_matches(','))
 }
 
 /// Set by the web front end: successful main-loop iterations without a `gGameState` change are not logged.
