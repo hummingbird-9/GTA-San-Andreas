@@ -1,0 +1,36 @@
+name: Build browser package
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Build private WebAssembly package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install Rust and the WebAssembly target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli --version 0.2.130 --locked
+        env:
+          CARGO_BUILD_JOBS: 2
+
+      - name: Build the static browser package
+        run: JOBS=2 tools/web/package.sh dist
+
+      - name: Upload private package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sa-engine-web-package
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7

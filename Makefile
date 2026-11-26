@@ -12,7 +12,7 @@ TAG    ?= local
 LANES  ?= 1,2,3
 
 .DEFAULT_GOAL := help
-.PHONY: help build build-mods run run-world run-samp web web-mods serve check test clippy verify frontier dupes structure bindings queue catalog progress
+.PHONY: help build build-mods run run-world run-samp web web-mods serve package-web serve-package check test clippy verify frontier dupes structure bindings queue catalog progress
 
 help: ## List the targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-z0-9-]+:.*## / {printf "  \033[1m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -41,6 +41,12 @@ web-mods: ## Browser build with WebAssembly mods (SA:MP: ?mods=samp)
 
 serve: ## Serve the browser build on localhost:8642 (GAME=/path/to/gta-sa)
 	tools/web/serve.sh --game $(GAME)
+
+package-web: ## Build a portable static browser site into dist/
+	tools/web/package.sh dist
+
+serve-package: package-web ## Preview the packaged browser site on localhost:8642
+	tools/web/serve.sh --web dist
 
 check: ## The writer gate: clippy (host, i686, wasm32), builds, hook tests, L1, queue, bindings, state.csv, structure
 	tools/verify/writer-gate.sh

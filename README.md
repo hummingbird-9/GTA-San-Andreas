@@ -21,10 +21,10 @@
 verified against the original binary as it goes. Each ported function is compared with the original — on random
 inputs, on every call during real play, and over whole recorded sessions frame by frame — before it counts as done.
 
-The same engine runs:
+The browser build is the project's primary way to try the game:
 
-- **natively on Linux**, without Wine and without executing any original code;
 - **in the browser** (WebAssembly, WebGPU or WebGL2, Web Audio);
+- **natively on Linux**, without Wine and without executing any original code;
 - **online on SA:MP 0.3.7-R4 / open.mp servers**, natively and in the browser, through the Rust SA:MP client in
   [`samp-rs/`](samp-rs/) (the browser connects through a small WebSocket ↔ UDP relay, `sa-udp-proxy`).
 
@@ -60,21 +60,34 @@ the step-by-step history in [`docs/WORKLOG.md`](docs/WORKLOG.md), and the curren
 
 ## Quick start
 
-Full instructions: [machine setup](docs/GETTING-STARTED.md#2-machine-setup), [game files](docs/GETTING-STARTED.md#3-your-game-files), [build](docs/GETTING-STARTED.md#4-build) and [run](docs/GETTING-STARTED.md#5-run-it) in the getting-started guide.
+The browser version is the recommended entry point. Build a portable static site, then preview it locally:
 
 ```sh
-# native (32-bit Linux)
-make build                        # cargo build --release --target i686-unknown-linux-gnu -p sa-game
-make run GAME=/path/to/gta-sa     # windowed, real keyboard and mouse
-
-# browser
-make web                          # wasm32 build into web/pkg
-tools/web/serve.sh --game /path/to/gta-sa        # then open http://localhost:8642/?autostart=1
-
-# SA:MP is a mod (docs/samp/README.md): natively `make run-samp`; in the browser
-make web-mods && mods/build.sh
-tools/web/serve.sh --game /path/to/gta-sa --mods target/mods   # ?mods=samp&proxy=ws://127.0.0.1:7781 (sa-udp-proxy)
+tools/web/package.sh                 # builds the WASM and writes a complete site to dist/
+tools/web/serve.sh --web dist        # http://localhost:8642/
 ```
+
+Open the page and choose your own GTA San Andreas folder (the folder containing `models/gta3.img`). The browser
+reads those files locally; they are not uploaded. You can also use `tools/web/serve.sh --web dist --game /path/to/gta-sa`
+to serve your own folder to localhost.
+
+For a downloadable package, run the **Build browser package** workflow from the repository's Actions tab and
+download its private `sa-engine-web-package` artifact. Deployment notes and the GitHub Pages privacy limitation
+are in [docs/WEB-DEPLOYMENT.md](docs/WEB-DEPLOYMENT.md).
+
+Native Linux remains available:
+
+```sh
+make build
+make run GAME=/path/to/gta-sa
+```
+
+SA:MP remains a mod (docs/samp/README.md): use `make web-mods && mods/build.sh`, then
+`tools/web/serve.sh --web dist --game /path/to/gta-sa --mods target/mods` with
+`?mods=samp&proxy=ws://127.0.0.1:7781` (sa-udp-proxy).
+
+Full instructions: [machine setup](docs/GETTING-STARTED.md#2-machine-setup), [game files](docs/GETTING-STARTED.md#3-your-game-files),
+[build](docs/GETTING-STARTED.md#4-build) and [run](docs/GETTING-STARTED.md#5-run-it).
 
 `make help` lists every target.
 
@@ -145,6 +158,7 @@ How a function is ported, verified and promoted: the getting-started guide, [how
 
 | I want to… | Read |
 |---|---|
+| build, package or deploy the browser version | [Browser packaging and deployment](docs/WEB-DEPLOYMENT.md) |
 | set up the machine and run something | [Getting started: setup, build, run](docs/GETTING-STARTED.md#2-machine-setup) |
 | understand the method (phases, oracle levels, definition of done) | [`docs/PLAN.md`](docs/PLAN.md), [Getting started: what this project is](docs/GETTING-STARTED.md#1-what-this-project-is) |
 | know the code rules and patterns | [`docs/arch/ADR-003-code-architecture.md`](docs/arch/ADR-003-code-architecture.md) |

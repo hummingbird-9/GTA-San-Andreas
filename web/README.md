@@ -5,17 +5,31 @@ main loop and ports as the native `sa-game --window`, drawing through wgpu (WebG
 `OffscreenCanvas`. No game asset is shipped: it reads **your own** GTA San Andreas 1.0 US folder. The exe's
 initial data is built into the module (`crates/sa-image`), so the page neither needs nor copies `gta_sa.exe`.
 
-## Run it
+## Build and run it
+
+For a complete static-site bundle (the same files you can upload to a static host):
 
 ```sh
-tools/web/build.sh                      # once per code change (release build, ~2 min from scratch)
-tools/web/serve.sh                      # http://localhost:8642/ (loopback only)
+tools/web/package.sh                 # release WASM build + complete site in dist/
+tools/web/serve.sh --web dist        # http://localhost:8642/
 ```
 
 Open <http://localhost:8642/>, press **Choose your GTA San Andreas folder** and pick the folder that contains
 `models/gta3.img`. The browser reads the files locally (they are never uploaded). Then press Enter through the logos
 and the menu (Start Game / New Game); "start in the world" skips the intro mission. Click the picture to capture
 the mouse; W A S D walk, as in the game's default controls.
+
+For development without copying the site into `dist/`, the shorter workflow remains available:
+
+```sh
+tools/web/build.sh
+tools/web/serve.sh
+```
+
+The standalone package is generated, not committed. `dist/` contains the browser page, worker files, audio worklet,
+and generated `pkg/sa_game.js` + `pkg/sa_game_bg.wasm`. It does not contain a GTA install; each player selects
+their own game folder in the browser. See [`docs/WEB-DEPLOYMENT.md`](../docs/WEB-DEPLOYMENT.md) for downloads,
+static hosting, and the private-data restriction on public Pages.
 
 Development shortcut: `tools/web/serve.sh --game ~/sa-engine/wine/gta-sa` also serves that folder to this machine
 only (ranged reads), and <http://localhost:8642/?autostart=1> starts with it without the picker.

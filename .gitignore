@@ -8,3 +8,4 @@ __pycache__/
 /traces/
 /.claude/
 /web/pkg/
+/dist/

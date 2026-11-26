@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#101216">
+  <title>sa-engine · browser build</title>
+  <style>
+    :root { color-scheme: dark; font: 16px/1.55 system-ui, sans-serif; background: #101216; color: #e7e9ed; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; }
+    main { width: min(720px, calc(100% - 40px)); padding: 42px 0; }
+    h1 { margin: 0 0 8px; font-size: clamp(2rem, 7vw, 3.2rem); letter-spacing: -.04em; }
+    p { color: #b7bdc7; }
+    a { color: #a9caff; }
+    pre { overflow-x: auto; background: #1a1e25; border: 1px solid #343b47; border-radius: 8px; padding: 14px 16px; color: #e7e9ed; }
+    .button { display: inline-block; margin: 12px 0; padding: 10px 16px; border-radius: 7px; background: #dce8ff; color: #101216; text-decoration: none; font-weight: 650; }
+    .note { border-left: 2px solid #8b98aa; padding-left: 14px; font-size: .92rem; }
+    small { color: #8892a1; }
+  </style>
+</head>
+<body>
+  <main>
+    <small>RUST · WEBASSEMBLY · GTA SAN ANDREAS 1.0 US</small>
+    <h1>sa-engine</h1>
+    <p>The browser build is the main way to try this project. This repository contains the source; the compiled
+       WebAssembly package is generated locally and is not committed.</p>
+    <p id="state">Checking for a built browser package…</p>
+    <a class="button" id="launch" href="web/index.html" hidden>Launch browser version</a>
+    <section id="build" hidden>
+      <p>Build the static browser package from the repository root:</p>
+      <pre>tools/web/package.sh
+tools/web/serve.sh --web dist</pre>
+      <p>Then open <code>http://localhost:8642/</code> and select your GTA San Andreas folder.</p>
+    </section>
+    <p class="note">The package includes the project's built-in executable-derived image data. Keep this repository
+       and generated package private; publishing the package to a public static site would expose that data.
+       See <a href="docs/WEB-DEPLOYMENT.md">browser deployment notes</a>.</p>
+    <p><a href="README.md">Source and development guide</a></p>
+  </main>
+  <script>
+    fetch('web/pkg/sa_game.js', { method: 'HEAD', cache: 'no-store' })
+      .then((response) => {
+        if (response.ok) {
+          document.querySelector('#state').textContent = 'A local browser build is available.';
+          document.querySelector('#launch').hidden = false;
+        } else {
+          document.querySelector('#state').textContent = 'The browser package has not been built in this checkout yet.';
+          document.querySelector('#build').hidden = false;
+        }
+      })
+      .catch(() => {
+        document.querySelector('#state').textContent = 'The browser package is not available at this address.';
+        document.querySelector('#build').hidden = false;
+      });
+  </script>
+</body>
+</html>
