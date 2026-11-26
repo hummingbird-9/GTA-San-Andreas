@@ -7,6 +7,7 @@ exclude:
   - catalog
   - crates
   - docs
+  - game
   - examples
   - mods
   - samp-rs
