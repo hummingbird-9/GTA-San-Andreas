@@ -367,6 +367,7 @@ loadBundledGame().then((found) => {
 // Physical keyboard input is normally passed through unchanged. In the original PC defaults Space sprints and
 // Left Shift jumps; this browser profile swaps those two physical keys to the requested layout.
 const GAME_KEY_REMAP = { Space: 'ShiftLeft', ShiftLeft: 'Space' };
+const heldPhysicalKeys = new Map();
 const PASS = new Set(['F5', 'F11', 'F12']);
 function onKey(down) {
   return (e) => {
@@ -377,19 +378,32 @@ function onKey(down) {
     }
     if (!worker || PASS.has(e.code)) return;
     e.preventDefault();
-    const remapped = !inMenu ? GAME_KEY_REMAP[e.code] : undefined;
+    let outputCode = heldPhysicalKeys.get(e.code);
+    if (down) {
+      if (!outputCode) {
+        outputCode = (!inMenu ? GAME_KEY_REMAP[e.code] : undefined) ?? e.code;
+        heldPhysicalKeys.set(e.code, outputCode);
+      }
+    } else {
+      outputCode ??= (!inMenu ? GAME_KEY_REMAP[e.code] : undefined) ?? e.code;
+      heldPhysicalKeys.delete(e.code);
+    }
+    const remapped = outputCode !== e.code;
     worker.postMessage({
       type: 'key',
-      code: remapped ?? e.code,
+      code: outputCode,
       down,
       repeat: e.repeat,
-      text: down && !remapped && e.key.length === 1 ? e.key : '',
+      text: down && !remapped && e.code !== 'Space' && e.key.length === 1 ? e.key : '',
     });
   };
 }
 window.addEventListener('keydown', onKey(true));
 window.addEventListener('keyup', onKey(false));
-window.addEventListener('blur', () => worker?.postMessage({ type: 'blur' }));
+window.addEventListener('blur', () => {
+  heldPhysicalKeys.clear();
+  worker?.postMessage({ type: 'blur' });
+});
 
 // the game's client size (its video mode; the worker's status reports it): the canvas keeps its aspect
 let client = [800, 600];
