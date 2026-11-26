@@ -327,7 +327,7 @@ async function loadBundledGame() {
       continue;
     }
     const hasMainArchive = index.some((f) =>
-      typeof f.path === 'string' && f.path.replaceAll('\\\\', '/').toLowerCase() === 'models/gta3.img');
+      typeof f.path === 'string' && f.path.toLowerCase() === 'models/gta3.img');
     if (!hasMainArchive) {
       failures.push(`${manifestUrl}: models/gta3.img is missing from the manifest`);
       continue;
@@ -390,13 +390,15 @@ $('run-game').addEventListener('click', launchGame);
 loadBundledGame().then((found) => {
   if (!found) {
     statusEl.className = 'err';
-    statusEl.textContent = 'Bundled game not found · pull the latest repository files';
-    $('alternate-source').open = false;
+    statusEl.textContent = 'Bundled files unavailable · check details';
+    $('alternate-source').open = true;
   }
 }).catch((e) => {
   log(`bundled game could not be loaded: ${e}`, 'error');
   statusEl.className = 'err';
-  statusEl.textContent = 'Could not read bundled game files · see diagnostics';
+  statusEl.textContent = `Bundled game check failed · ${e.message ?? e}`;
+  $('local-status').textContent = `Manifest check error: ${e.message ?? e}`;
+  $('alternate-source').open = true;
 });
 
 // ---------------------------------------------------------------- input ---
