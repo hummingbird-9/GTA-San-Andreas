@@ -42,6 +42,17 @@ of `dist/`; extract it and serve the extracted directory over HTTP(S).
 
 The workflow only creates a private Actions artifact. It does not publish a website or enable Pages.
 
+After downloading and extracting the artifact, you can run it on Arch Linux (or another machine with Python 3):
+
+```sh
+cd /path/to/extracted/sa-engine-web-package
+python3 -m http.server 8000 --bind 127.0.0.1
+```
+
+Open <http://localhost:8000/> and choose your local GTA folder. Do not open `index.html` directly with `file://`.
+The standard Python server does not add cross-origin-isolation headers, so the page uses its supported audio
+message-passing fallback.
+
 ## Static hosting
 
 The contents of `dist/` form a static website. Upload the *contents* of that directory to the document root of a
