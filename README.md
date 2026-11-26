@@ -68,12 +68,21 @@ tools/web/serve.sh --web dist        # http://localhost:8642/
 ```
 
 Open the page and choose your own GTA San Andreas folder (the folder containing `models/gta3.img`). The browser
-reads those files locally; they are not uploaded. You can also use `tools/web/serve.sh --web dist --game /path/to/gta-sa`
-to serve your own folder to localhost.
+reads those files locally; they are not uploaded.
 
-For a downloadable package, run the **Build browser package** workflow from the repository's Actions tab and
-download its private `sa-engine-web-package` artifact. Deployment notes and the GitHub Pages privacy limitation
-are in [docs/WEB-DEPLOYMENT.md](docs/WEB-DEPLOYMENT.md).
+To prepare the repository root itself as a static site (so the publishing source can be `main` / `/(root)`, with
+no deployment workflow), run:
+
+```sh
+tools/web/export-root.sh
+```
+
+This builds the WASM and copies the browser entry page, workers, audio module, mod glue and generated `pkg/` into
+the repository root. Review and commit those generated files to `main`. Re-run the command after web frontend or
+engine changes. The root entry page is the actual game UI, not a redirect or placeholder.
+
+For a downloadable package, the **Build browser package** workflow is still available in the Actions tab. Deployment
+instructions and the important GitHub Pages privacy limitation are in [docs/WEB-DEPLOYMENT.md](docs/WEB-DEPLOYMENT.md).
 
 Native Linux remains available:
 

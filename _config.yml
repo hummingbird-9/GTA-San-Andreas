@@ -1,0 +1,20 @@
+# Limit the GitHub Pages output to the root browser runtime.
+# Source, executable-derived files, tools and docs remain in Git but are not published by Jekyll.
+exclude:
+  - .cargo
+  - .githooks
+  - .github
+  - catalog
+  - crates
+  - docs
+  - examples
+  - mods
+  - samp-rs
+  - tools
+  - web
+  - Cargo.lock
+  - Cargo.toml
+  - CLAUDE.md
+  - Makefile
+  - README.md
+  - rustfmt.toml
