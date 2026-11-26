@@ -200,6 +200,43 @@
   #cachestatus { overflow-wrap: anywhere; }
   #cache button { min-height: 29px; padding: 3px 8px; font-size: 11px; }
   #log { display: none; }
+  body.show-logs #log {
+    display: block;
+    position: fixed;
+    left: 12px;
+    bottom: 12px;
+    z-index: 14;
+    width: min(700px, calc(100vw - 24px));
+    max-height: 34vh;
+    overflow: auto;
+    margin: 0;
+    padding: 12px 13px;
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 11px;
+    color: #cbd4df;
+    background: rgba(8,11,15,.9);
+    box-shadow: 0 12px 40px rgba(0,0,0,.35);
+    backdrop-filter: blur(12px);
+  }
+  body.show-logs #log::before {
+    content: "ENGINE LOG · PRESS 0 TO HIDE";
+    display: block;
+    position: sticky;
+    top: -12px;
+    margin: -12px -13px 8px;
+    padding: 9px 13px;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+    color: #edaa52;
+    background: rgba(8,11,15,.96);
+    font: 10px ui-monospace, SFMono-Regular, monospace;
+    letter-spacing: .08em;
+  }
+  body.game-active.show-logs #cache {
+    left: auto;
+    right: 12px;
+    max-width: min(48vw, 620px);
+  }
+  #controls-hint { color: #9aa5b2; font: 10px ui-monospace, SFMono-Regular, monospace; }
   .err { color: #f88; }
   @media (max-width: 620px) {
     #launcher { width: min(100% - 28px, 900px); padding: 36px 0 24px; gap: 18px; }
@@ -209,6 +246,9 @@
     #run-game { width: 100%; }
     #corner { left: 8px; right: 8px; top: 8px; justify-content: center; }
     #ministatus { max-width: 100%; width: 100%; text-align: center; }
+    #controls-hint { width: 100%; text-align: center; }
+    body.game-active.show-logs #log { left: 8px; right: 8px; bottom: 64px; width: auto; max-height: 30vh; }
+    body.game-active.show-logs #cache { left: 8px; right: 8px; bottom: 8px; max-width: none; }
   }
 </style>
 </head>
@@ -257,10 +297,14 @@
   <canvas id="screen" width="800" height="600" tabindex="0" aria-label="Grand Theft Auto: San Andreas game screen"></canvas>
   <div id="corner">
     <span id="ministatus">Starting game…</span>
+    <span id="controls-hint">WASD · Shift sprint · Space jump · 0 logs</span>
     <span id="mouse" class="off">Mouse: free</span>
     <span id="audio" class="off">Audio: off</span>
     <button id="mute" type="button">Mute</button>
     <label>Volume <input id="vol" type="range" min="0" max="100" step="1"></label>
+    <button id="logs-toggle" type="button" aria-pressed="false" title="Toggle engine logs (0)">Logs · 0</button>
+    <button id="fullwin" type="button" title="Leave browser fullscreen but keep the game filling the window">Full window</button>
+    <button id="fullscreen" type="button" title="Enter browser fullscreen">Fullscreen</button>
     <span id="blocked"></span>
     <button id="unfull" type="button" title="Return to the launcher">Exit game</button>
   </div>
