@@ -17,7 +17,7 @@ tools/web/serve.sh --web dist        # http://localhost:8642/
 Open <http://localhost:8642/> and choose a folder containing `models/gta3.img` under "Use a different GTA San
 Andreas folder". Then press **Run Game**. The browser reads the files locally (they are never uploaded). The
 **Skip intro mission** option is off by default; enable it to start directly in the world. Run Game opens the
-canvas in browser fullscreen. This browser profile uses **Shift to sprint** and **Space to jump**; in-game vertical mouse movement is inverted. Press **0** to show or hide the engine log. The HUD retains mute, volume, cache download, Full window, Fullscreen, and Exit game controls. Click the picture to capture the mouse; W A S D walk.
+canvas in browser fullscreen. The game's default keyboard bindings are **Left Shift to sprint** and **Space to jump**; physical keyboard scan codes are passed through unchanged. In-game vertical mouse movement is inverted. Press **0** to show or hide the engine log. The HUD retains mute, volume, cache download, Full window, Fullscreen, and Exit game controls. Click the picture to capture the mouse; W A S D walk.
 
 For development without copying the site into `dist/`, the shorter workflow remains available:
 
