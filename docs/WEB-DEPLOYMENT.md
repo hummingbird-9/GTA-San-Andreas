@@ -34,9 +34,11 @@ From the repository root:
 
     python3 -m http.server 8000 --bind 127.0.0.1
 
-Open http://localhost:8000/. The page automatically finds the bundled game and starts it. A folder picker remains
-available only when no valid bundled manifest is present. Do not open the HTML through file://: browser module
-workers and WebAssembly require an HTTP(S) origin.
+Open http://localhost:8000/. The launch screen checks for the bundled game data and enables **Run Game** when the
+manifest is valid. Choose **Skip intro mission** only when you want to bypass the intro; it is off by default.
+Click **Run Game** to open the game in browser fullscreen. A folder picker is available under "Use a different
+GTA San Andreas folder" as a fallback. Do not open the HTML through file://: browser module workers and WebAssembly
+require an HTTP(S) origin.
 
 ## Build and preview the editable web source
 
@@ -49,7 +51,9 @@ The standard development page in web/ can still be served with:
 
     tools/web/serve.sh
 
-It retains the local folder picker for development. The root page is the bundled static entry point.
+The same launch screen is used there. From a repository checkout it also checks ../game/game-index.json; when
+running a standalone development build without bundled data, expand "Use a different GTA San Andreas folder"
+and select a local game folder.
 
 ## Privacy and deployment
 
