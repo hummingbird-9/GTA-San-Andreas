@@ -14,10 +14,10 @@ tools/web/package.sh                 # release WASM build + complete site in dis
 tools/web/serve.sh --web dist        # http://localhost:8642/
 ```
 
-Open <http://localhost:8642/>, press **Choose your GTA San Andreas folder** and pick the folder that contains
-`models/gta3.img`. The browser reads the files locally (they are never uploaded). Then press Enter through the logos
-and the menu (Start Game / New Game); "start in the world" skips the intro mission. Click the picture to capture
-the mouse; W A S D walk, as in the game's default controls.
+Open <http://localhost:8642/> and choose a folder containing `models/gta3.img` under "Use a different GTA San
+Andreas folder". Then press **Run Game**. The browser reads the files locally (they are never uploaded). The
+**Skip intro mission** option is off by default; enable it to start directly in the world. Run Game opens the
+canvas in browser fullscreen. Click the picture to capture the mouse; W A S D walk, as in the game's default controls.
 
 For development without copying the site into `dist/`, the shorter workflow remains available:
 
@@ -45,8 +45,8 @@ blocks do not stop the loop. Click the picture to capture the mouse, Esc release
 package's exploration stubs by default: `&stub=ADDR=RET/N,...` replaces them, `&stub=none` drops them. `?backend=gl` forces WebGL2, the path
 verified headless. Details: `docs/arch/platform.md` section 22.
 
-`?full=1` (or the "Full window" button) lets the picture fill the browser window, "Fullscreen" fills the screen
-(Esc leaves); the game keeps its video mode and the canvas is scaled, letterboxed at 4:3. In the menus (gGameState
+`Run Game` opens the session in browser fullscreen; if the browser exits fullscreen, the canvas continues filling
+the browser viewport. The game keeps its video mode and the canvas is scaled, letterboxed at 4:3. In the menus (gGameState
 other than IDLE) the pointer is not captured: its position reaches the game as `WM_MOUSEMOVE` (the menu draws its own
 cursor and highlights the item under it) and clicks are menu clicks; in the world a click captures the mouse.
 
@@ -100,7 +100,7 @@ before the mod reaches a server. The headless join test: `WEB=1 tools/e2e/samp/m
 
 ## Files
 
-* `index.html`, `main.js`: the page (folder picker, input forwarding, status line, log panel)
+* `index.html`, `main.js`: the launch screen, optional folder picker, input forwarding, status line, log panel
 * `worker.js`: the worker (module loader, synchronous file reads, main loop scheduling, the audio ring's writer)
 * `audio-worklet.js`: the AudioWorklet processor that plays the game's mix
 * `pkg/`: build output of `tools/web/build.sh` (not committed)
