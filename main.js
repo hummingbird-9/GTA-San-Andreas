@@ -281,40 +281,76 @@ $('pick').addEventListener('change', (e) => {
   $('run-game').textContent = 'Run Game';
 });
 
-// Bundled data can be hosted from the repository root or from web/. The latter uses ../game/.
-// Split physical pieces are presented to the engine as their original logical files.
+// Resolve the bundled manifest against this script, not the current document URL. This works when
+// the page is served from the repository root and when web/ is opened directly.
 function bundledFiles(index, gameRoot) {
-  const encode = (p) => p.split('/').map(encodeURIComponent).join('/');
+  const fileUrl = (path) => new URL(path.split('/').map(encodeURIComponent).join('/'), gameRoot).href;
   return gameFiles(index.map((f) => ({
     path: f.path, size: f.size, mtime: f.mtime, revision: f.sha256 ?? '',
-    url: gameRoot + encode(f.path),
-    ...(Array.isArray(f.parts) ? { parts: f.parts.map((p) => ({ ...p, url: gameRoot + encode(p.path) })) } : {}),
+    url: fileUrl(f.path),
+    ...(Array.isArray(f.parts) ? { parts: f.parts.map((p) => ({ ...p, url: fileUrl(p.path) })) } : {}),
   })));
 }
 async function loadBundledGame() {
+  const scriptDir = new URL('.', import.meta.url);
   const candidates = [
-    { manifest: 'game/game-index.json', root: 'game/' },
-    { manifest: '../game/game-index.json', root: '../game/' },
+    { manifest: new URL('game/game-index.json', scriptDir), root: new URL('game/', scriptDir) },
+    { manifest: new URL('../game/game-index.json', scriptDir), root: new URL('../game/', scriptDir) },
+    { manifest: new URL('/game/game-index.json', scriptDir), root: new URL('/game/', scriptDir) },
   ];
+  const seen = new Set();
+  const failures = [];
   for (const candidate of candidates) {
-    const r = await fetch(candidate.manifest, { cache: 'no-store' });
-    if (!r.ok) continue;
-    const index = await r.json();
+    const manifestUrl = candidate.manifest.href;
+    if (seen.has(manifestUrl)) continue;
+    seen.add(manifestUrl);
+    let response;
+    try {
+      response = await fetch(candidate.manifest, { cache: 'no-store', headers: { Accept: 'application/json' } });
+    } catch (error) {
+      failures.push(`${manifestUrl}: ${error.message ?? error}`);
+      continue;
+    }
+    if (!response.ok) {
+      failures.push(`${manifestUrl}: HTTP ${response.status}`);
+      continue;
+    }
+    let index;
+    try {
+      index = await response.json();
+    } catch (error) {
+      failures.push(`${manifestUrl}: invalid JSON (${error.message ?? error})`);
+      continue;
+    }
     if (!Array.isArray(index) || !index.length) {
-      throw new Error(`${candidate.manifest} is empty or invalid`);
+      failures.push(`${manifestUrl}: expected a non-empty JSON array`);
+      continue;
+    }
+    const hasMainArchive = index.some((f) =>
+      typeof f.path === 'string' && f.path.replaceAll('\\\\', '/').toLowerCase() === 'models/gta3.img');
+    if (!hasMainArchive) {
+      failures.push(`${manifestUrl}: models/gta3.img is missing from the manifest`);
+      continue;
     }
     const list = bundledFiles(index, candidate.root);
-    if (!list.some((f) => f.path.toLowerCase() === 'models/gta3.img')) {
-      throw new Error(`${candidate.manifest} does not contain models/gta3.img`);
+    if (!list.length) {
+      failures.push(`${manifestUrl}: no usable game files after filtering`);
+      continue;
     }
     bundledGameFiles = list;
     statusEl.className = 'ready';
     statusEl.textContent = `Bundled game ready · ${list.length} files`;
     $('run-game').disabled = false;
     $('run-game').textContent = 'Run Game';
-    $('local-status').textContent = 'Bundled game data is available; a local folder is optional.';
+    $('local-status').textContent = 'Bundled game data found in this repository.';
+    log(`bundled game manifest: ${manifestUrl} (${list.length} logical files)`);
     return true;
   }
+  const detail = failures.join(' · ') || 'no manifest candidates were available';
+  log(`bundled game lookup failed: ${detail}`, 'error');
+  statusEl.className = 'err';
+  statusEl.textContent = 'Bundled game data not found';
+  $('local-status').textContent = detail;
   return false;
 }
 
