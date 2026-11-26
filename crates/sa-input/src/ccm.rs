@@ -1363,6 +1363,16 @@ pub fn init_default_control_configuration(this: GPtr<u8>) {
     for (a, k, t) in DEFAULT_KEYS_B {
         set(a, k, t);
     }
+
+    // Preferred keyboard defaults: Space jumps; Left Shift sprints. These are game-level bindings,
+    // not browser scan-code remapping, so the same physical keys reach the engine unchanged.
+    const PED_JUMPING: i32 = 0x0C;
+    const PED_SPRINT: i32 = 0x0D;
+    const RS_SPACE: u32 = 0x20;
+    const RS_LEFT_SHIFT: u32 = 0x416;
+    set(PED_JUMPING, RS_SPACE, 0);
+    set(PED_SPRINT, RS_LEFT_SHIFT, 0);
+
     clear_sim_flags(this);
 }
 
