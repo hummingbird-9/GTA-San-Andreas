@@ -3,60 +3,274 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>sa-engine</title>
+<meta name="theme-color" content="#0b0d10">
+<title>Grand Theft Auto: San Andreas — sa-engine</title>
 <style>
-  body { margin: 0; background: #111; color: #ddd; font: 14px system-ui, sans-serif; }
-  #bar, #bar2 { padding: 8px 12px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-  #stage { display: flex; justify-content: center; align-items: center; background: #000; }
-  #screen { display: block; background: #000; width: 800px; height: calc(800px / var(--aspect, 1.333333)); image-rendering: auto; }
+  :root {
+    color-scheme: dark;
+    --bg: #0b0d10;
+    --panel: #14181f;
+    --panel-raised: #1b212a;
+    --line: #2a313b;
+    --text: #f2f4f7;
+    --muted: #9aa5b2;
+    --accent: #edaa52;
+    --aspect: 1.333333;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--text);
+    background:
+      radial-gradient(ellipse at 50% 12%, rgba(190, 119, 48, .13), transparent 42%),
+      radial-gradient(ellipse at 90% 95%, rgba(57, 91, 112, .11), transparent 38%),
+      var(--bg);
+    font: 15px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  button, input { font: inherit; }
+  #launcher {
+    width: min(900px, calc(100% - 40px));
+    min-height: 100vh;
+    margin: 0 auto;
+    padding: 56px 0 34px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 24px;
+  }
+  .brand { padding: 0 3px 4px; }
+  .eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 750;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+  }
+  .eyebrow::before { content: ""; width: 22px; height: 2px; background: var(--accent); }
+  h1 {
+    max-width: 760px;
+    margin: 15px 0 9px;
+    font-size: clamp(30px, 5vw, 52px);
+    line-height: 1.04;
+    letter-spacing: -.045em;
+    font-weight: 760;
+  }
+  .subtitle { margin: 0; color: var(--muted); font-size: 15px; }
+  .launch-card {
+    padding: 25px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: linear-gradient(145deg, rgba(27,33,42,.97), rgba(17,21,27,.98));
+    box-shadow: 0 24px 80px rgba(0,0,0,.28);
+  }
+  .card-head, .card-actions { display: flex; align-items: center; justify-content: space-between; gap: 22px; }
+  .card-head { align-items: flex-start; margin-bottom: 26px; }
+  .section-label {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+  }
+  h2 { margin: 5px 0 0; font-size: 21px; letter-spacing: -.02em; }
+  #status {
+    max-width: 48%;
+    padding: 7px 11px;
+    border: 1px solid #35414a;
+    border-radius: 999px;
+    color: #c5d0d9;
+    background: rgba(10,14,18,.45);
+    font-size: 12px;
+    text-align: right;
+  }
+  #status.ready { color: #b8e2c5; border-color: #345443; }
+  #status.err { color: #ffc2b8; border-color: #69413b; }
+  .card-actions { padding-top: 20px; border-top: 1px solid var(--line); }
+  .option { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+  .option input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+  .option span { display: flex; flex-direction: column; gap: 2px; }
+  .option strong { font-size: 14px; font-weight: 650; }
+  .option small { color: var(--muted); font-size: 12px; }
+  button, .folder-button {
+    min-height: 42px;
+    padding: 9px 15px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    color: var(--text);
+    background: var(--panel-raised);
+    cursor: pointer;
+    transition: background .15s ease, border-color .15s ease, transform .15s ease;
+  }
+  button:hover:not(:disabled), .folder-button:hover { border-color: #596574; background: #252d38; }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:disabled { opacity: .48; cursor: wait; }
+  #run-game {
+    min-width: 160px;
+    min-height: 48px;
+    border-color: #e5a24a;
+    color: #18130c;
+    background: linear-gradient(180deg, #f5bd70, #e49a3c);
+    font-weight: 800;
+    box-shadow: 0 7px 22px rgba(228,154,60,.16);
+  }
+  #run-game:hover:not(:disabled) { border-color: #ffd49a; background: linear-gradient(180deg, #ffd08b, #eda64d); }
+  #alternate-source {
+    padding: 15px 18px;
+    border: 1px solid rgba(57,66,78,.75);
+    border-radius: 12px;
+    background: rgba(20,24,31,.66);
+  }
+  #alternate-source summary { color: #c4ccd5; cursor: pointer; font-size: 13px; font-weight: 600; }
+  .folder-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+  .folder-button { display: inline-flex; align-items: center; font-size: 13px; }
+  #local-status { color: var(--muted); font-size: 12px; }
+  .footnote { color: #788390; font-size: 12px; }
+  #stage { display: none; align-items: center; justify-content: center; overflow: hidden; background: #000; }
+  #screen {
+    display: block;
+    flex: none;
+    width: min(100vw, calc(100vh * var(--aspect, 1.333333)));
+    height: min(100vh, calc(100vw / var(--aspect, 1.333333)));
+    background: #000;
+    image-rendering: auto;
+    outline: none;
+  }
   #screen.menu { cursor: none; }
-  /* full window / fullscreen: the canvas fills the viewport at the aspect of the game's video mode (letterboxed, smooth scaling) */
-  body.full #bar, body.full #bar2, body.full #log { display: none; }
-  body.full #stage, #stage:fullscreen { position: fixed; inset: 0; z-index: 1; }
-  body.full #screen, #stage:fullscreen #screen { width: min(100vw, calc(100vh * var(--aspect, 1.333333))); height: min(100vh, calc(100vw / var(--aspect, 1.333333))); }
-  #corner { display: none; position: fixed; top: 6px; right: 6px; z-index: 2; opacity: 0.35; font: 12px monospace; gap: 6px; align-items: center; }
-  #corner:hover { opacity: 0.9; }
-  body.full #corner, #stage:fullscreen #corner { display: flex; }
-  #status { font-family: monospace; color: #9c9; }
-  #log { font: 12px monospace; white-space: pre-wrap; max-height: 30vh; overflow: auto; margin: 8px 12px; color: #aaa; }
-  button, label.btn { background: #333; color: #eee; border: 1px solid #555; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
+  body.game-active { min-height: 100vh; overflow: hidden; background: #000; }
+  body.game-active #launcher { display: none; }
+  body.game-active #stage {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    width: 100vw;
+    height: 100vh;
+  }
+  #corner {
+    display: none;
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 12;
+    max-width: min(520px, calc(100vw - 24px));
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid rgba(255,255,255,.13);
+    border-radius: 11px;
+    color: #d6dce3;
+    background: rgba(12,15,19,.78);
+    backdrop-filter: blur(12px);
+    opacity: .28;
+    transition: opacity .15s ease;
+  }
+  #corner:hover, #corner:focus-within { opacity: 1; }
+  body.game-active #corner { display: flex; }
+  #ministatus { max-width: 190px; overflow: hidden; color: #bac5d0; font: 11px/1.3 ui-monospace, SFMono-Regular, monospace; text-overflow: ellipsis; white-space: nowrap; }
+  #mouse, #audio { color: #d0d7df; font: 11px ui-monospace, SFMono-Regular, monospace; white-space: nowrap; }
+  #mouse.on, #audio.on { color: #a8ddb8; }
+  #mouse.off, #audio.off { color: #e7c58b; }
+  #corner button { min-height: 30px; padding: 4px 9px; font-size: 11px; }
+  #corner label { display: inline-flex; align-items: center; gap: 5px; color: #c2cbd4; font-size: 11px; }
+  #vol { width: 76px; accent-color: var(--accent); }
+  #blocked { color: #f5cd82; font: 10px ui-monospace, monospace; }
+  #cache {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: fixed;
+    left: 12px;
+    bottom: 12px;
+    z-index: 12;
+    max-width: min(620px, calc(100vw - 24px));
+    padding: 9px 11px;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 10px;
+    color: #c6d0db;
+    background: rgba(12,15,19,.78);
+    font: 11px ui-monospace, SFMono-Regular, monospace;
+  }
+  #cache[hidden] { display: none; }
+  #cachestatus { overflow-wrap: anywhere; }
+  #cache button { min-height: 29px; padding: 3px 8px; font-size: 11px; }
+  #log { display: none; }
   .err { color: #f88; }
-  #mouse { font-family: monospace; }
-  #mouse.on, #audio.on { color: #9c9; } #mouse.off, #audio.off { color: #fc6; }
-  #audio { font-family: monospace; }
-  #blocked { font-family: monospace; color: #fc6; }
-  #cache { padding: 0 12px 8px; display: flex; gap: 12px; align-items: center; }
-  #cache[hidden], body.full #cache { display: none; }
-  #cachestatus { font-family: monospace; color: #9bd; }
+  @media (max-width: 620px) {
+    #launcher { width: min(100% - 28px, 900px); padding: 36px 0 24px; gap: 18px; }
+    .launch-card { padding: 18px; }
+    .card-head, .card-actions { align-items: stretch; flex-direction: column; gap: 14px; }
+    #status { max-width: 100%; text-align: left; }
+    #run-game { width: 100%; }
+    #corner { left: 8px; right: 8px; top: 8px; justify-content: center; }
+    #ministatus { max-width: 100%; width: 100%; text-align: center; }
+  }
 </style>
 </head>
 <body>
-<div id="bar">
-  <label class="btn" id="picklabel">Choose your GTA San Andreas folder
-    <input id="pick" type="file" webkitdirectory multiple hidden>
-  </label>
-  <label><input id="inworld" type="checkbox" checked> start in the world (skip the intro mission)</label>
-  <span id="status">checking for bundled game data...</span>
+<main id="launcher">
+  <header class="brand">
+    <div class="eyebrow">SA-ENGINE · BROWSER EDITION</div>
+    <h1>Grand Theft Auto: San Andreas</h1>
+    <p class="subtitle">A self-contained browser build. Your game data is loaded from this repository.</p>
+  </header>
+
+  <section class="launch-card" aria-label="Game launch options">
+    <div class="card-head">
+      <div>
+        <div class="section-label">Game session</div>
+        <h2>Ready when you are</h2>
+      </div>
+      <div id="status" role="status" aria-live="polite">Checking bundled game files…</div>
+    </div>
+    <div class="card-actions">
+      <label class="option" for="inworld">
+        <input id="inworld" type="checkbox">
+        <span>
+          <strong>Skip intro mission</strong>
+          <small>Start directly in the game world.</small>
+        </span>
+      </label>
+      <button id="run-game" type="button" disabled>Run Game</button>
+    </div>
+  </section>
+
+  <details id="alternate-source">
+    <summary>Use a different GTA San Andreas folder</summary>
+    <div class="folder-row">
+      <label class="folder-button" id="picklabel">Choose game folder
+        <input id="pick" type="file" webkitdirectory multiple hidden>
+      </label>
+      <span id="local-status">Optional fallback if the bundled files are unavailable.</span>
+    </div>
+  </details>
+
+  <footer class="footnote">Click the game to use the mouse. Press Esc to release it or leave browser fullscreen.</footer>
+</main>
+
+<div id="stage">
+  <canvas id="screen" width="800" height="600" tabindex="0" aria-label="Grand Theft Auto: San Andreas game screen"></canvas>
+  <div id="corner">
+    <span id="ministatus">Starting game…</span>
+    <span id="mouse" class="off">Mouse: free</span>
+    <span id="audio" class="off">Audio: off</span>
+    <button id="mute" type="button">Mute</button>
+    <label>Volume <input id="vol" type="range" min="0" max="100" step="1"></label>
+    <span id="blocked"></span>
+    <button id="unfull" type="button" title="Return to the launcher">Exit game</button>
+  </div>
 </div>
-<div id="bar2">
-  <span>Click the picture to capture the mouse; Esc releases it.</span>
-  <span id="mouse" class="off">mouse captured: no</span>
-  <span id="audio" class="off">audio: off</span>
-  <button id="mute">mute</button>
-  <label>volume <input id="vol" type="range" min="0" max="100" step="1"></label>
-  <span id="blocked"></span>
-  <button id="fullwin" title="the picture fills the browser window (also ?full=1)">Full window</button>
-  <button id="fullscreen" title="the picture fills the screen (Esc leaves)">Fullscreen</button>
-</div>
+
 <div id="cache" hidden>
   <span id="cachestatus"></span>
-  <button id="download" title="fetch every file of the served folder into this browser's storage (it stays on this device)">Download everything (offline cache)</button>
+  <button id="download" type="button" title="Fetch every game file into this browser's storage">Download offline</button>
 </div>
-<div id="stage">
-  <canvas id="screen" width="800" height="600" tabindex="0"></canvas>
-  <div id="corner"><span id="ministatus"></span><button id="unfull">Exit full window</button></div>
-</div>
-<div id="log"></div>
+<div id="log" aria-live="polite"></div>
 <script type="module" src="main.js"></script>
 </body>
 </html>
