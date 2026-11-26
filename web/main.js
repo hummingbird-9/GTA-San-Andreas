@@ -13,13 +13,15 @@ const logEl = $('log');
 const statusEl = $('status');
 const params = new URLSearchParams(location.search);
 let worker = null;
+let bundledGameFiles = null;
+let selectedGameFiles = null;
 
 // the exploration defaults of the native play package (target/play/play.sh): unported mission-script opcodes are
 // skipped, and these functions return a constant (ADDRESS=RETURN/stack dwords popped; a leading ! replaces a port:
 // 0x5efca0 turns off ped attractors, whose task tree is still being ported).
 const DEFAULT_STUBS = '0x421a50=0/0,!0x5efca0=0/4';
 
-if (params.get('inworld') === '0') $('inworld').checked = false;
+if (params.get('inworld') === '1') $('inworld').checked = true;
 
 function log(text, level = 'log') {
   const line = document.createElement('div');
@@ -206,7 +208,9 @@ async function start(files) {
       window.saGame.snapshots.push({ state: m.state, iterations: m.iterations, png: b64 });
     } else if (m.type === 'progress') {
       window.saGame.progress = m;
-      statusEl.textContent = m.preload ? `fetching the start-up files... ${m.preload}` : `loading... ${m.mib} MiB read`;
+      const progressText = m.preload ? `fetching start-up files · ${m.preload}` : `loading · ${m.mib} MiB read`;
+      statusEl.textContent = progressText;
+      $('ministatus').textContent = progressText;
     } else if (m.type === 'status') {
       window.saGame.status = m;
       if (m.client && (m.client[0] !== client[0] || m.client[1] !== client[1])) {
@@ -218,7 +222,8 @@ async function start(files) {
         `${m.phase ?? ''} gGameState ${st}, ${m.iterations} iterations${m.blocked ? ` (${m.blocked} blocked)` : ''}, ${m.presents} in-game frames, ${m.mib} MiB read` +
         (m.io?.waits ? `, ${m.io.waits} reads waited for the network (${m.io.waitMs} ms)` : '');
       statusEl.className = m.error ? 'err' : '';
-      $('ministatus').textContent = m.error ? `error: ${m.error}` : m.blocked ? `${m.blocked} blocked` : '';
+      $('ministatus').textContent = m.error ? `Error · ${m.error}` : m.done ? m.done :
+        `${st}${m.blocked ? ` · ${m.blocked} blocked` : ''}`;
       // the SA:MP UI's cursor (dialogs, scoreboard, class-selection panel) takes the pointer like the menus
       const wasMenu = inMenu;
       inMenu = m.inMenu ?? (m.state !== 9 || !!m.uiCursor || !!m.menuActive);
@@ -256,7 +261,7 @@ function gameFiles(list) {
   return list.filter((f) => f.path.toLowerCase() !== 'gta_sa.exe');
 }
 
-// a folder picked in the page: paths relative to the chosen folder
+// A folder picked as a fallback. Selecting it prepares the session; Run Game starts it.
 $('pick').addEventListener('change', (e) => {
   const list = gameFiles([...e.target.files].map((f) => ({
     path: f.webkitRelativePath.split('/').slice(1).join('/'),
@@ -265,40 +270,97 @@ $('pick').addEventListener('change', (e) => {
   })));
   if (!list.some((f) => f.path.toLowerCase() === 'models/gta3.img')) {
     log('that folder has no models/gta3.img (choose the GTA San Andreas folder itself)', 'error');
+    $('local-status').textContent = 'That folder does not contain models/gta3.img.';
     return;
   }
-  start(list);
+  selectedGameFiles = list;
+  $('local-status').textContent = `Selected folder · ${list.length} files`;
+  statusEl.className = 'ready';
+  statusEl.textContent = `Local game folder ready · ${list.length} files`;
+  $('run-game').disabled = false;
+  $('run-game').textContent = 'Run Game';
 });
 
-// Bundled game data is stored under game/. Split physical files are exposed to the engine as one
-// logical file with its original path and size; every piece remains an ordinary static file.
-function bundledFiles(index) {
+// Bundled data can be hosted from the repository root or from web/. The latter uses ../game/.
+// Split physical pieces are presented to the engine as their original logical files.
+function bundledFiles(index, gameRoot) {
   const encode = (p) => p.split('/').map(encodeURIComponent).join('/');
   return gameFiles(index.map((f) => ({
     path: f.path, size: f.size, mtime: f.mtime, revision: f.sha256 ?? '',
-    url: 'game/' + encode(f.path),
-    ...(Array.isArray(f.parts) ? { parts: f.parts.map((p) => ({ ...p, url: 'game/' + encode(p.path) })) } : {}),
+    url: gameRoot + encode(f.path),
+    ...(Array.isArray(f.parts) ? { parts: f.parts.map((p) => ({ ...p, url: gameRoot + encode(p.path) })) } : {}),
   })));
 }
 async function loadBundledGame() {
-  const r = await fetch('game/game-index.json', { cache: 'no-store' });
-  if (!r.ok) return false;
-  const index = await r.json();
-  if (!Array.isArray(index) || !index.length) throw new Error('game/game-index.json is empty or invalid');
-  const list = bundledFiles(index);
-  if (!list.some((f) => f.path.toLowerCase() === 'models/gta3.img')) {
-    throw new Error('the bundled files do not contain models/gta3.img');
+  const candidates = [
+    { manifest: 'game/game-index.json', root: 'game/' },
+    { manifest: '../game/game-index.json', root: '../game/' },
+  ];
+  for (const candidate of candidates) {
+    const r = await fetch(candidate.manifest, { cache: 'no-store' });
+    if (!r.ok) continue;
+    const index = await r.json();
+    if (!Array.isArray(index) || !index.length) {
+      throw new Error(`${candidate.manifest} is empty or invalid`);
+    }
+    const list = bundledFiles(index, candidate.root);
+    if (!list.some((f) => f.path.toLowerCase() === 'models/gta3.img')) {
+      throw new Error(`${candidate.manifest} does not contain models/gta3.img`);
+    }
+    bundledGameFiles = list;
+    statusEl.className = 'ready';
+    statusEl.textContent = `Bundled game ready · ${list.length} files`;
+    $('run-game').disabled = false;
+    $('run-game').textContent = 'Run Game';
+    $('local-status').textContent = 'Bundled game data is available; a local folder is optional.';
+    return true;
   }
-  $('picklabel').hidden = true;
-  statusEl.textContent = `bundled game found (${list.length} files); loading...`;
-  await start(list);
-  return true;
+  return false;
 }
+
+async function launchGame() {
+  const files = selectedGameFiles ?? bundledGameFiles;
+  if (!files?.length || worker) return;
+  $('run-game').disabled = true;
+  $('run-game').textContent = 'Starting…';
+  $('ministatus').textContent = 'Starting game…';
+
+  // Reveal the stage first, then request real browser fullscreen directly from this button gesture.
+  document.body.classList.add('game-active');
+  const stage = $('stage');
+  stage.getBoundingClientRect();
+  let fullscreenRequest = null;
+  try {
+    fullscreenRequest = stage.requestFullscreen?.();
+  } catch (e) {
+    log(`fullscreen unavailable: ${e}`);
+  }
+  fullscreenRequest?.catch?.((e) => log(`fullscreen unavailable: ${e}`));
+  displayChanged();
+
+  try {
+    await start(files);
+  } catch (e) {
+    log(`could not start the game: ${e}`, 'error');
+    statusEl.className = 'err';
+    statusEl.textContent = `Could not start the game: ${e.message ?? e}`;
+    document.body.classList.remove('game-active');
+    $('run-game').disabled = false;
+    $('run-game').textContent = 'Try Again';
+  }
+}
+$('run-game').addEventListener('click', launchGame);
+
 loadBundledGame().then((found) => {
-  if (!found) statusEl.textContent = 'no bundled game found (choose a GTA San Andreas folder)';
+  if (!found) {
+    statusEl.className = 'err';
+    statusEl.textContent = 'Bundled game not found · pull the latest repository files';
+    $('alternate-source').open = false;
+  }
 }).catch((e) => {
   log(`bundled game could not be loaded: ${e}`, 'error');
-  statusEl.textContent = 'bundled game failed to load (choose a folder or check the log)';
+  statusEl.className = 'err';
+  statusEl.textContent = 'Could not read bundled game files · see diagnostics';
 });
 
 // ---------------------------------------------------------------- input ---
@@ -320,7 +382,7 @@ let client = [800, 600];
 // the display the game's mods see (e.g. the resolution mod): the space the canvas can take on the page in device
 // pixels: the viewport in full window / fullscreen, else the canvas's 800 x 600 CSS box
 function displaySize() {
-  const full = document.body.classList.contains('full') || !!document.fullscreenElement;
+  const full = document.body.classList.contains('game-active') || !!document.fullscreenElement;
   const [w, h] = full ? [window.innerWidth, window.innerHeight] : [800, 600];
   const dpr = window.devicePixelRatio || 1;
   return [Math.round(w * dpr), Math.round(h * dpr)];
@@ -335,28 +397,18 @@ function displayChanged() {
 }
 window.addEventListener('resize', displayChanged);
 
-// full window (?full=1) and fullscreen: CSS scales the canvas to the page, at the game's aspect (letterboxed)
+// Browser fullscreen is requested by Run Game. The game remains viewport-sized if the user exits browser fullscreen.
 let inMenu = true;
 // the page released the pointer lock itself (the SA:MP UI shows its cursor), not the user's Esc
 let selfRelease = false;
-function setFull(on) {
-  document.body.classList.toggle('full', on);
-  displayChanged();
-  $('unfull').textContent = document.fullscreenElement ? 'Exit fullscreen' : 'Exit full window';
-  canvas.focus();
-}
-$('fullwin').onclick = () => setFull(true);
-$('unfull').onclick = () => (document.fullscreenElement ? document.exitFullscreen() : setFull(false));
-$('fullscreen').onclick = () => $('stage').requestFullscreen?.().then(() => setFull(false)).catch((e) => log(`fullscreen: ${e}`, 'error'));
+$('unfull').onclick = () => location.reload();
 document.addEventListener('fullscreenchange', () => {
   // in fullscreen Chromium lets the page keep Esc (Keyboard Lock API): it then reaches the game like any key
   if (document.fullscreenElement) navigator.keyboard?.lock?.(['Escape']).catch(() => {});
   else navigator.keyboard?.unlock?.();
-  $('unfull').textContent = document.fullscreenElement ? 'Exit fullscreen' : 'Exit full window';
   displayChanged();
   canvas.focus();
 });
-if (params.get('full') === '1') setFull(true);
 
 // the pointer position in the game's client pixels (the canvas is scaled by CSS)
 function gamePos(e) {
