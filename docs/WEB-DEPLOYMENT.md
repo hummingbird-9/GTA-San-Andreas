@@ -79,7 +79,9 @@ and `mods.js` to the root, and copies the generated files to root `pkg/`. The ed
 ```sh
 git add index.html main.js worker.js loader.js audio-worklet.js mods.js pkg/
 git commit -m "build(web): prepare root static site"
-git push origin main
+git remote -v  # identify the remote for your own repository
+# Push to your own repository remote, not the original upstream:
+git push <your-repo-remote> HEAD:main
 ```
 
 After those files are committed, the branch publishing source can be set to `main` / `/(root)`; no deployment
