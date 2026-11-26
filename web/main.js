@@ -364,13 +364,27 @@ loadBundledGame().then((found) => {
 });
 
 // ---------------------------------------------------------------- input ---
-// keyboard: physical key codes (layout-independent, as DirectInput / the scan codes see them)
+// Physical keyboard input is normally passed through unchanged. In the original PC defaults Space sprints and
+// Left Shift jumps; this browser profile swaps those two physical keys to the requested layout.
+const GAME_KEY_REMAP = { Space: 'ShiftLeft', ShiftLeft: 'Space' };
 const PASS = new Set(['F5', 'F11', 'F12']);
 function onKey(down) {
   return (e) => {
+    if (e.code === 'Digit0') {
+      e.preventDefault();
+      if (down && !e.repeat) toggleLogs();
+      return;
+    }
     if (!worker || PASS.has(e.code)) return;
     e.preventDefault();
-    worker.postMessage({ type: 'key', code: e.code, down, repeat: e.repeat, text: down && e.key.length === 1 ? e.key : '' });
+    const remapped = !inMenu ? GAME_KEY_REMAP[e.code] : undefined;
+    worker.postMessage({
+      type: 'key',
+      code: remapped ?? e.code,
+      down,
+      repeat: e.repeat,
+      text: down && !remapped && e.key.length === 1 ? e.key : '',
+    });
   };
 }
 window.addEventListener('keydown', onKey(true));
@@ -401,7 +415,23 @@ window.addEventListener('resize', displayChanged);
 let inMenu = true;
 // the page released the pointer lock itself (the SA:MP UI shows its cursor), not the user's Esc
 let selfRelease = false;
-$('unfull').onclick = () => location.reload();
+$('fullwin').onclick = () => {
+  if (document.fullscreenElement) document.exitFullscreen?.().catch?.((e) => log(`could not leave fullscreen: ${e}`, 'error'));
+};
+$('fullscreen').onclick = () => {
+  if (!document.fullscreenElement) $('stage').requestFullscreen?.().catch?.((e) => log(`fullscreen unavailable: ${e}`, 'error'));
+};
+$('unfull').onclick = () => {
+  const leave = document.fullscreenElement ? document.exitFullscreen?.() : null;
+  Promise.resolve(leave).catch(() => {}).finally(() => location.reload());
+};
+function toggleLogs(force) {
+  const show = typeof force === 'boolean' ? force : !document.body.classList.contains('show-logs');
+  document.body.classList.toggle('show-logs', show);
+  $('logs-toggle').setAttribute('aria-pressed', String(show));
+  $('logs-toggle').textContent = show ? 'Hide logs · 0' : 'Logs · 0';
+}
+$('logs-toggle').onclick = () => toggleLogs();
 document.addEventListener('fullscreenchange', () => {
   // in fullscreen Chromium lets the page keep Esc (Keyboard Lock API): it then reaches the game like any key
   if (document.fullscreenElement) navigator.keyboard?.lock?.(['Escape']).catch(() => {});
@@ -464,7 +494,7 @@ document.addEventListener('pointerlockerror', () => {
 });
 document.addEventListener('mousemove', (e) => {
   if (worker && document.pointerLockElement === canvas) {
-    worker.postMessage({ type: 'mouse', dx: e.movementX, dy: e.movementY });
+    worker.postMessage({ type: 'mouse', dx: e.movementX, dy: -e.movementY });
     window.saGame.mouseX = (window.saGame.mouseX ?? 0) + e.movementX;
   }
 });
