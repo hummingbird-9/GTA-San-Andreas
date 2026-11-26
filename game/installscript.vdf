@@ -1,0 +1,20 @@
+"InstallScript"
+{
+       	"Registry"
+       	{
+               "HKEY_LOCAL_MACHINE\\SOFTWARE\\Rockstar Games\\GTA San Andreas\\1.00.00001"
+               {
+   			   }
+   		}
+   		"Registry"
+       	{
+               "HKEY_LOCAL_MACHINE\\SOFTWARE\\Rockstar Games\\GTA San Andreas\\Installation"
+               {
+               		"string"
+               		{
+               			"exePath"			"%INSTALLDIR%\\gta_sa.exe"
+               			"Installed"			"1"
+               		}
+   			   }
+   		}
+}
