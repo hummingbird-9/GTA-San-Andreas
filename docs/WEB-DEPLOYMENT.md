@@ -36,8 +36,8 @@ From the repository root:
 
 Open http://localhost:8000/. The launch screen checks for the bundled game data and enables **Run Game** when the
 manifest is valid. Choose **Skip intro mission** only when you want to bypass the intro; it is off by default.
-Click **Run Game** to open the game in browser fullscreen. In-game, Shift sprints, Space jumps, vertical mouse
-movement is inverted, and **0** toggles the engine log. The HUD retains cache download, mute/volume,
+Click **Run Game** to open the game in browser fullscreen. The engine's default bindings are Left Shift to sprint and Space to jump (the browser passes physical key
+scan codes through unchanged); vertical mouse movement is inverted, and **0** toggles the engine log. The HUD retains cache download, mute/volume,
 Full window, Fullscreen, and Exit game controls. A folder picker is available under "Use a different
 GTA San Andreas folder" as a fallback. Do not open the HTML through file://: browser module workers and WebAssembly
 require an HTTP(S) origin.
