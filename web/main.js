@@ -157,7 +157,7 @@ function startLoader(files) {
     downloading = m.downloadAll;
   };
   loader.onerror = (e) => log(`loader error: ${e.message}`, 'error');
-  loader.postMessage({ type: 'init', files: files.map(({ path, size, mtime, url }) => ({ path, size, mtime, url })), port: ch.port1, sab: ioSab }, [ch.port1]);
+  loader.postMessage({ type: 'init', files: files.map(({ path, size, mtime, revision, url, parts }) => ({ path, size, mtime, revision, url, parts })), port: ch.port1, sab: ioSab }, [ch.port1]);
   if (params.get('download') === '1') loader.postMessage({ type: 'downloadAll', on: true });
   return ch.port2;
 }
@@ -270,19 +270,36 @@ $('pick').addEventListener('change', (e) => {
   start(list);
 });
 
-// the folder tools/web/serve.sh --game serves (localhost only)
-async function served() {
-  const r = await fetch('game-index.json');
-  const idx = await r.json();
-  return gameFiles(idx.map((f) => ({ path: f.path, size: f.size, mtime: f.mtime, url: 'game/' + f.path.split('/').map(encodeURIComponent).join('/') })));
+// Bundled game data is stored under game/. Split physical files are exposed to the engine as one
+// logical file with its original path and size; every piece remains an ordinary static file.
+function bundledFiles(index) {
+  const encode = (p) => p.split('/').map(encodeURIComponent).join('/');
+  return gameFiles(index.map((f) => ({
+    path: f.path, size: f.size, mtime: f.mtime, revision: f.sha256 ?? '',
+    url: 'game/' + encode(f.path),
+    ...(Array.isArray(f.parts) ? { parts: f.parts.map((p) => ({ ...p, url: 'game/' + encode(p.path) })) } : {}),
+  })));
 }
-fetch('game-index.json').then((r) => r.ok ? r.json() : []).then((idx) => {
-  if (idx.length) {
-    $('served').hidden = false;
-    $('served').onclick = async () => start(await served());
-    if (params.get('autostart') === '1') served().then(start);
+async function loadBundledGame() {
+  const r = await fetch('game/game-index.json', { cache: 'no-store' });
+  if (!r.ok) return false;
+  const index = await r.json();
+  if (!Array.isArray(index) || !index.length) throw new Error('game/game-index.json is empty or invalid');
+  const list = bundledFiles(index);
+  if (!list.some((f) => f.path.toLowerCase() === 'models/gta3.img')) {
+    throw new Error('the bundled files do not contain models/gta3.img');
   }
-}).catch(() => {});
+  $('picklabel').hidden = true;
+  statusEl.textContent = `bundled game found (${list.length} files); loading...`;
+  await start(list);
+  return true;
+}
+loadBundledGame().then((found) => {
+  if (!found) statusEl.textContent = 'no bundled game found (choose a GTA San Andreas folder)';
+}).catch((e) => {
+  log(`bundled game could not be loaded: ${e}`, 'error');
+  statusEl.textContent = 'bundled game failed to load (choose a folder or check the log)';
+});
 
 // ---------------------------------------------------------------- input ---
 // keyboard: physical key codes (layout-independent, as DirectInput / the scan codes see them)

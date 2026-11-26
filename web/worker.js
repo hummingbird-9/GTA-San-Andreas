@@ -52,14 +52,52 @@ const io = { stacks: false, logged: 0, waits: 0, waitMs: 0, waitBytes: 0, lastWa
 // the blocks read before the game is in the world (sent to the loader as the next load's start-up list)
 let startup = new Set();
 
-function syncFetch(f, start, end) {
+// Synchronous fallback for servers without cross-origin isolation. Fetch and cache each small physical file whole.
+const PHYSICAL_CACHE_LIMIT = 96 * 1024 * 1024;
+const physicalCache = new Map();
+let physicalCacheBytes = 0;
+function fetchPhysicalSync(part) {
+  const cached = physicalCache.get(part.url);
+  if (cached) {
+    physicalCache.delete(part.url);
+    physicalCache.set(part.url, cached);
+    return cached;
+  }
   const xhr = new XMLHttpRequest();
-  xhr.open('GET', f.url, false);
+  xhr.open('GET', part.url, false);
   xhr.responseType = 'arraybuffer';
-  xhr.setRequestHeader('Range', `bytes=${start}-${end - 1}`);
   xhr.send();
-  if (xhr.status !== 206 && xhr.status !== 200) throw new Error(`${f.url}: HTTP ${xhr.status}`);
-  return new Uint8Array(xhr.response);
+  if (xhr.status !== 200) throw new Error(`${part.url}: HTTP ${xhr.status}`);
+  const bytes = new Uint8Array(xhr.response);
+  if (Number.isFinite(part.size) && bytes.byteLength !== part.size) throw new Error(`${part.url}: wrong size (${bytes.byteLength} of ${part.size})`);
+  physicalCache.set(part.url, bytes);
+  physicalCacheBytes += bytes.byteLength;
+  while (physicalCacheBytes > PHYSICAL_CACHE_LIMIT && physicalCache.size > 1) {
+    const [oldUrl, oldBytes] = physicalCache.entries().next().value;
+    physicalCache.delete(oldUrl);
+    physicalCacheBytes -= oldBytes.byteLength;
+  }
+  return bytes;
+}
+function syncFetch(f, start, end) {
+  const out = new Uint8Array(end - start);
+  const sources = f.parts?.length ? f.parts : [{ url: f.url, size: f.size, offset: 0 }];
+  let copied = 0;
+  let nextOffset = 0;
+  for (const part of sources) {
+    const partStart = Number.isFinite(part.offset) ? part.offset : nextOffset;
+    const partSize = part.size ?? f.size;
+    const partEnd = partStart + partSize;
+    nextOffset = partEnd;
+    const lo = Math.max(start, partStart);
+    const hi = Math.min(end, partEnd);
+    if (lo >= hi) continue;
+    const bytes = fetchPhysicalSync({ ...part, size: partSize });
+    out.set(bytes.subarray(lo - partStart, hi - partStart), lo - start);
+    copied += hi - lo;
+  }
+  if (copied !== end - start) throw new Error(`${f.path}: split pieces do not cover bytes ${start}-${end}`);
+  return out;
 }
 
 function put(k, v) {
@@ -497,7 +535,7 @@ self.onmessage = async (ev) => {
         if (m.audioTap) audioTap = [];
         for (const f of m.files) {
           const id = files.length;
-          files.push(f.file ? { size: f.size, file: f.file } : { size: f.size, url: f.url });
+          files.push(f.file ? { size: f.size, file: f.file } : { size: f.size, url: f.url, parts: f.parts, revision: f.revision });
           sa.add_game_file(f.path, id, f.size);
         }
         console.log(`${files.length} game files registered`);

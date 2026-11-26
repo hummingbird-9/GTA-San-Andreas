@@ -37,7 +37,7 @@ function fnv(s, seed) {
   return h.toString(16).padStart(8, '0');
 }
 const fileKey = (f) => {
-  const s = `${f.path.toLowerCase()}|${f.size}|${f.mtime ?? 0}`;
+  const s = `${f.path.toLowerCase()}|${f.size}|${f.mtime ?? 0}|${f.revision ?? ''}`;
   return fnv(s, 0x811c9dc5) + fnv(s, 0x01234567);
 };
 
@@ -172,6 +172,56 @@ async function idbStore() {
 }
 
 // ---------------------------------------------------------------- fetching ---
+// Physical pieces are fetched whole so this also works with static servers without HTTP Range support.
+const PHYSICAL_CACHE_LIMIT = 96 * 1024 * 1024;
+const physicalCache = new Map();
+const physicalPending = new Map();
+let physicalCacheBytes = 0;
+async function fetchPhysical(part) {
+  const cached = physicalCache.get(part.url);
+  if (cached) {
+    physicalCache.delete(part.url);
+    physicalCache.set(part.url, cached);
+    return cached;
+  }
+  if (physicalPending.has(part.url)) return physicalPending.get(part.url);
+  const pending = (async () => {
+    const r = await fetch(part.url, { cache: 'no-store' });
+    if (!r.ok) throw new Error(`HTTP ${r.status} for ${part.url}`);
+    const bytes = new Uint8Array(await r.arrayBuffer());
+    if (Number.isFinite(part.size) && bytes.byteLength !== part.size) throw new Error(`wrong size for ${part.url}: ${bytes.byteLength} of ${part.size}`);
+    physicalCache.set(part.url, bytes);
+    physicalCacheBytes += bytes.byteLength;
+    while (physicalCacheBytes > PHYSICAL_CACHE_LIMIT && physicalCache.size > 1) {
+      const [oldUrl, oldBytes] = physicalCache.entries().next().value;
+      physicalCache.delete(oldUrl);
+      physicalCacheBytes -= oldBytes.byteLength;
+    }
+    return bytes;
+  })();
+  physicalPending.set(part.url, pending);
+  try { return await pending; } finally { physicalPending.delete(part.url); }
+}
+async function fetchFileRange(file, start, end) {
+  const out = new Uint8Array(end - start);
+  const sources = file.parts?.length ? file.parts : [{ url: file.url, size: file.size, offset: 0 }];
+  let copied = 0;
+  let nextOffset = 0;
+  for (const part of sources) {
+    const partStart = Number.isFinite(part.offset) ? part.offset : nextOffset;
+    const partSize = part.size ?? file.size;
+    const partEnd = partStart + partSize;
+    nextOffset = partEnd;
+    const lo = Math.max(start, partStart);
+    const hi = Math.min(end, partEnd);
+    if (lo >= hi) continue;
+    const bytes = await fetchPhysical({ ...part, size: partSize });
+    out.set(bytes.subarray(lo - partStart, hi - partStart), lo - start);
+    copied += hi - lo;
+  }
+  if (copied !== end - start) throw new Error(`split pieces do not cover ${file.path} bytes ${start}-${end}`);
+  return out.buffer;
+}
 const key = (id, b) => `${id}:${b}`;
 
 // wants block b of file id at priority prio; deliver: hand it to the game's worker once there
@@ -276,9 +326,7 @@ async function fetchRun(id, run, tries = 0) {
   const start = run[0] * BLOCK;
   const end = Math.min(f.size, (run[run.length - 1] + 1) * BLOCK);
   try {
-    const r = await fetch(f.url, { headers: { Range: `bytes=${start}-${end - 1}` }, cache: 'no-store' });
-    if (r.status !== 206 && !(r.status === 200 && start === 0 && end === f.size)) throw new Error(`HTTP ${r.status}`);
-    const buf = await r.arrayBuffer();
+    const buf = await fetchFileRange(f, start, end);
     if (buf.byteLength !== end - start) throw new Error(`short answer (${buf.byteLength} of ${end - start} bytes)`);
     netBytes += buf.byteLength;
     for (const b of run) {
@@ -346,8 +394,7 @@ async function startupList() {
   await Promise.all(files.map(async (f, id) => {
     if (!f.path.toLowerCase().endsWith('.img') || f.size < 8) return;
     try {
-      const r = await fetch(f.url, { headers: { Range: 'bytes=0-7' }, cache: 'no-store' });
-      const h = new DataView(await r.arrayBuffer());
+      const h = new DataView(await fetchFileRange(f, 0, 8));
       const dirEnd = h.getUint32(0, true) === 0x32524556 ? 8 + 32 * h.getUint32(4, true) : 0;
       for (let b = 0; b * BLOCK < Math.min(dirEnd, f.size); b++) out.push([id, b]);
     } catch {}
@@ -420,9 +467,7 @@ async function onSync(m) {
     if (missing.length) {
       const start = missing[0] * BLOCK;
       const end = Math.min(f.size, (missing[missing.length - 1] + 1) * BLOCK);
-      const r = await fetch(f.url, { headers: { Range: `bytes=${start}-${end - 1}` }, cache: 'no-store' });
-      if (r.status !== 206 && !(r.status === 200 && start === 0 && end === f.size)) throw new Error(`HTTP ${r.status}`);
-      const buf = await r.arrayBuffer();
+      const buf = await fetchFileRange(f, start, end);
       netBytes += buf.byteLength;
       for (const b of missing) {
         const from = (b - missing[0]) * BLOCK;
