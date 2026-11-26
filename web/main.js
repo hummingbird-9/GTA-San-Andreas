@@ -1,5 +1,5 @@
-// The page (WEB-1): picks the game folder, starts the worker that runs the game, forwards keyboard and mouse input.
-// URL query: ?inworld=0 (play the intro), ?backend=gl|webgpu, ?auto=1 (scripted Enter / SA_GAME_WALK, for unattended runs), any SA_* name
+// The page (WEB-1): checks bundled game data, launches the full-screen session, and forwards keyboard and mouse input.
+// URL query: ?inworld=1 (skip the intro mission), ?backend=gl|webgpu, ?auto=1 (scripted Enter / SA_GAME_WALK, for unattended runs), any SA_* name
 // (SA_GAME_STUB, SA_GAME_WALK, SA_GAME_SCRIPT_SKIP, ...) is passed to the game as a development variable.
 // SA:MP is a mod: ?mods=samp[&proxy=ws://127.0.0.1:7781] (build with FEATURES=mods; docs/samp/README.md).
 // ?mods=NAME,...: load these WebAssembly mods from the server's mods/ (build with FEATURES=mods).
