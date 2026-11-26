@@ -339,7 +339,7 @@ async function loadBundledGame() {
     }
     bundledGameFiles = list;
     statusEl.className = 'ready';
-    statusEl.textContent = `Bundled game ready · ${list.length} files`;
+    statusEl.textContent = 'Ready';
     $('run-game').disabled = false;
     $('run-game').textContent = 'Run Game';
     $('local-status').textContent = 'Bundled game data found in this repository.';
@@ -349,8 +349,11 @@ async function loadBundledGame() {
   const detail = failures.join(' · ') || 'no manifest candidates were available';
   log(`bundled game lookup failed: ${detail}`, 'error');
   statusEl.className = 'err';
-  statusEl.textContent = 'Bundled game data not found';
-  $('local-status').textContent = detail;
+  const hostOmittedGameData = failures.some((failure) => /HTTP 404/.test(failure));
+  statusEl.textContent = hostOmittedGameData ? 'Game data not included' : 'Bundled game data not found';
+  $('local-status').textContent = hostOmittedGameData
+    ? 'This host returned 404 for the bundled manifest. The repository excludes game/ from Jekyll output, so this hosted copy does not contain the game files. Run the repository locally over HTTP or choose a local game folder.'
+    : detail;
   return false;
 }
 
