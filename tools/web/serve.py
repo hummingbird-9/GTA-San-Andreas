@@ -98,7 +98,7 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         url = urllib.parse.urlparse(self.path)
-        if url.path == "/game-index.json":
+        if Handler.game is not None and url.path == "/game-index.json":
             body = Handler.index
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -106,9 +106,10 @@ class Handler(SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
-        if url.path.startswith("/game/"):
+        if Handler.game is not None and url.path.startswith("/game/"):
             self.send_game(urllib.parse.unquote(url.path[len("/game/"):]))
             return
+        # Without --game, /game/ is served from --web like any other static directory.
         if url.path.startswith("/mods/"):
             self.send_mod(urllib.parse.unquote(url.path[len("/mods/"):]))
             return
