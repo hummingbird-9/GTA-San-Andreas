@@ -23,7 +23,7 @@ stack=$((16 * 1024 * 1024))
 
 RUSTFLAGS="-C link-arg=--no-stack-first -C link-arg=--global-base=$low_end -C link-arg=-zstack-size=$stack -C link-arg=--export=__stack_pointer ${RUSTFLAGS:-}" \
 CARGO_PROFILE_RELEASE_DEBUG=${CARGO_PROFILE_RELEASE_DEBUG:-0} \
-    cargo build -j"${JOBS:-8}" --profile "$profile" -p sa-game --lib --target wasm32-unknown-unknown --no-default-features ${FEATURES:+--features "$FEATURES"}
+    cargo build -j"${JOBS:-2}" --profile "$profile" -p sa-game --lib --target wasm32-unknown-unknown --no-default-features ${FEATURES:+--features "$FEATURES"}
 
 bindgen=wasm-bindgen
 [ -x target/tools/bin/wasm-bindgen ] && bindgen=target/tools/bin/wasm-bindgen
