@@ -195,6 +195,89 @@
     width: 100vw;
     height: 100vh;
   }
+  #boot-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 11;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    padding: clamp(22px, 5vw, 72px);
+    background: linear-gradient(90deg, rgba(0,0,0,.42), rgba(0,0,0,.06) 72%);
+    pointer-events: none;
+  }
+  #boot-overlay[hidden], #boot-progress[hidden], #nvidia-splash[hidden] { display: none; }
+  #boot-overlay.splash {
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: rgba(0,0,0,.96);
+  }
+  #boot-progress {
+    width: min(430px, 90vw);
+    margin-bottom: clamp(18px, 6vh, 58px);
+    color: #f4f0df;
+    font-family: "Pricedown", Impact, "Arial Black", sans-serif;
+    text-transform: uppercase;
+    transform: skewX(-3deg);
+    text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 3px 4px 8px #000;
+  }
+  #boot-title {
+    font-size: clamp(30px, 5vw, 58px);
+    font-weight: 900;
+    line-height: .92;
+    letter-spacing: .045em;
+  }
+  #boot-amount {
+    margin-top: 9px;
+    color: #f0d77a;
+    font-size: clamp(17px, 2.35vw, 25px);
+    font-weight: 900;
+    letter-spacing: .06em;
+  }
+  #boot-activity {
+    margin-top: 7px;
+    color: #e1ddcc;
+    font: 700 10px/1.4 "Courier New", monospace;
+    letter-spacing: .08em;
+  }
+  #boot-track {
+    width: min(340px, 78vw);
+    height: 5px;
+    margin-top: 13px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,.65);
+    background: rgba(0,0,0,.7);
+    transform: skewX(3deg);
+  }
+  #boot-track span {
+    display: block;
+    width: 38%;
+    height: 100%;
+    background: #dfc46e;
+    animation: boot-sweep 1.15s ease-in-out infinite;
+  }
+  @keyframes boot-sweep {
+    from { transform: translateX(-110%); }
+    to { transform: translateX(275%); }
+  }
+  #nvidia-splash {
+    width: min(640px, 92vw);
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border: 3px solid #25321d;
+    outline: 1px solid #000;
+    background: #050805;
+    box-shadow: 0 12px 45px rgba(0,0,0,.8);
+    image-rendering: pixelated;
+  }
+  #nvidia-card {
+    display: block;
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+  }
+  body.boot-splash #corner, body.boot-splash #cache { visibility: hidden; }
   #corner {
     display: none;
     position: fixed;
@@ -343,6 +426,17 @@
 
 <div id="stage">
   <canvas id="screen" width="800" height="600" tabindex="0" aria-label="Grand Theft Auto: San Andreas game screen"></canvas>
+  <div id="boot-overlay" hidden>
+    <div id="boot-progress" aria-live="polite">
+      <div id="boot-title">LOADING</div>
+      <div id="boot-amount">0 MiB READ</div>
+      <div id="boot-activity">LOADING GAME DATA...</div>
+      <div id="boot-track"><span></span></div>
+    </div>
+    <div id="nvidia-splash" hidden>
+      <canvas id="nvidia-card" width="320" height="180" role="img" aria-label="NVIDIA — The way it's meant to be played"></canvas>
+    </div>
+  </div>
   <div id="corner">
     <span id="ministatus">Starting game…</span>
     <span id="controls-hint">WASD · Shift sprint · Space jump · 0 logs</span>
