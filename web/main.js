@@ -356,10 +356,18 @@ function bundledFiles(index, gameRoot) {
 }
 async function loadBundledGame() {
   const scriptDir = new URL('.', import.meta.url);
+  const cloudflareCdn = new URL('https://cdn.humming6ird-9.workers.dev/');
   const candidates = [
     { manifest: new URL('game/game-index.json', scriptDir), root: new URL('game/', scriptDir) },
     { manifest: new URL('../game/game-index.json', scriptDir), root: new URL('../game/', scriptDir) },
     { manifest: new URL('/game/game-index.json', scriptDir), root: new URL('/game/', scriptDir) },
+    // GitHub Pages' Jekyll build excludes game/. The Cloudflare CDN worker has a
+    // /GTA-San-Andreas/* route that proxies these files from this repository's main branch.
+    {
+      source: 'Cloudflare CDN',
+      manifest: new URL('GTA-San-Andreas/game/game-index.json', cloudflareCdn),
+      root: new URL('GTA-San-Andreas/game/', cloudflareCdn),
+    },
   ];
   const seen = new Set();
   const failures = [];
@@ -405,7 +413,9 @@ async function loadBundledGame() {
     statusEl.textContent = 'Ready';
     $('run-game').disabled = false;
     $('run-game').textContent = 'Run Game';
-    $('local-status').textContent = 'Bundled game data found in this repository.';
+    $('local-status').textContent = candidate.source
+      ? 'Bundled game data found via the Cloudflare CDN.'
+      : 'Bundled game data found in this repository.';
     log(`bundled game manifest: ${manifestUrl} (${list.length} logical files)`);
     return true;
   }
@@ -415,7 +425,7 @@ async function loadBundledGame() {
   const hostOmittedGameData = failures.some((failure) => /HTTP 404/.test(failure));
   statusEl.textContent = hostOmittedGameData ? 'Game data not included' : 'Bundled game data not found';
   $('local-status').textContent = hostOmittedGameData
-    ? 'This host returned 404 for the bundled manifest. The repository excludes game/ from Jekyll output, so this hosted copy does not contain the game files. Run the repository locally over HTTP or choose a local game folder.'
+    ? 'The repository contains game/, but GitHub Pages omits it from the Jekyll output. The launcher also tried the Cloudflare CDN fallback; check the network log if that request failed.'
     : detail;
   return false;
 }
