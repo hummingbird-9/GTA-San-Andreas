@@ -296,7 +296,9 @@ async function preload(port) {
   loader.onmessage = onLoader;
   const h = await new Promise((res) => (hello = res));
   io.store = h.store;
-  const list = h.startup.slice(0, MAX_BLOCKS - 16);
+  // Preload the entire startup manifest. put() keeps the in-memory LRU bounded by MAX_BLOCKS,
+  // while the loader persists every block to OPFS/IndexedDB for later reads and launches.
+  const list = h.startup;
   preloadWaiting = new Set(list.map(([id, b]) => `${id}:${b}`));
   const total = preloadWaiting.size;
   console.log(`start-up prefetch: ${total} blocks (${(total / 4).toFixed(0)} MiB, ${h.manifestKnown ? 'the list of an earlier load' : 'first guess'}), cache: ${h.store}`);
