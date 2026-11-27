@@ -23,6 +23,13 @@ pub fn log_line(s: String) {
     web_sys::console::log_1(&s.into());
 }
 
+static BROWSER_FRAME_SETTINGS_APPLIED: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+fn browser_flag(name: &str) -> bool {
+    crate::env::var_os(name).is_some_and(|value| value == "1" || value.eq_ignore_ascii_case("true"))
+}
+
 thread_local! {
     /// The running session (leaked `Box`). Not a `RefCell`: an iteration left through a JS exception (an unported
     /// callee, [`unported`]) never returns, so a borrow held across it would stay taken.
@@ -128,7 +135,12 @@ pub async fn init_gpu(canvas: web_sys::OffscreenCanvas, backend: String) -> Resu
             required_features: adapter.features() & sa_rw_wgpu::d3d9::WgpuDevice::optional_features(),
             required_limits: limits,
             experimental_features: Default::default(),
-            memory_hints: wgpu::MemoryHints::Performance,
+            // The 4 GB profile prefers smaller GPU allocations; the adapter may ignore this hint.
+            memory_hints: if browser_flag("SA_GAME_PERFORMANCE") {
+                wgpu::MemoryHints::MemoryUsage
+            } else {
+                wgpu::MemoryHints::Performance
+            },
             trace: Default::default(),
         })
         .await
@@ -200,6 +212,39 @@ impl wgpu::rwh::HasDisplayHandle for WebDisplay {
 #[wasm_bindgen]
 pub fn boot() -> Result<(), JsValue> {
     let game = crate::platform::webfs::WebFs;
+    BROWSER_FRAME_SETTINGS_APPLIED.store(false, std::sync::atomic::Ordering::Relaxed);
+
+    // Keep normal GTA population intact in the main low-end profile, and turn off only expensive
+    // optional effects. The extra population switch is deliberately more aggressive.
+    if browser_flag("SA_GAME_PERFORMANCE") {
+        use sa_core::options::{self, Feature};
+        for feature in [
+            Feature::AmbientPlanes,
+            Feature::Plants,
+            Feature::SunAndMoon,
+            Feature::IdleCamera,
+            Feature::Replay,
+            Feature::RealTimeShadows,
+            Feature::SpeedBlur,
+        ] {
+            options::set(feature, false);
+        }
+    }
+    if browser_flag("SA_GAME_PERFORMANCE_POPULATION") {
+        use sa_core::options::{self, Feature};
+        for feature in [Feature::AmbientPeds, Feature::RandomTraffic, Feature::CarGenerators] {
+            options::set(feature, false);
+        }
+    }
+    // The single low-resolution option restricts the D3D9 adapter to this standard mode.
+    // The normal adapter mode list is unchanged when the user leaves the setting at Game default.
+    if crate::env::var_os("SA_GAME_RESOLUTION").as_deref() == Some("640x480") {
+        crate::display::set_adapter(crate::display::Display {
+            desktop: (640, 480, 60),
+            modes: vec![(640, 480, 60)],
+        });
+    }
+
     crate::boot::NO_PROBE.store(true, std::sync::atomic::Ordering::SeqCst);
     crate::app::QUIET_FRAMES.store(true, std::sync::atomic::Ordering::SeqCst);
     if crate::env::var_os("SA_WEB_SAMPLE").is_some() {
@@ -239,6 +284,18 @@ pub fn boot() -> Result<(), JsValue> {
 /// `SA_WEB_AUTO_INPUT=1` the offscreen mode's synthetic input is added (unattended evidence runs).
 #[wasm_bindgen]
 pub fn frame() -> bool {
+    // Apply menu choices once, immediately before the first in-world frame. Zero means uncapped.
+    if crate::winmain::game_state() == crate::winmain::STATE_IDLE
+        && !BROWSER_FRAME_SETTINGS_APPLIED.swap(true, std::sync::atomic::Ordering::Relaxed)
+    {
+        let fps = crate::env::var_os("SA_GAME_FRAME_LIMIT")
+            .and_then(|value| value.parse::<u32>().ok())
+            .unwrap_or(0);
+        crate::winmain::apply_browser_frame_settings(
+            fps,
+            browser_flag("SA_GAME_PERFORMANCE"),
+        );
+    }
     crate::d3d9::PRESENTED_THIS_TASK.store(0, std::sync::atomic::Ordering::Relaxed);
     if SAMPLING.load(std::sync::atomic::Ordering::Relaxed) {
         thread_local! {
