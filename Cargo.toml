@@ -4,6 +4,11 @@ members = ["crates/*", "examples/mods/*", "mods/*"]
 # samp-rs/ is its own Cargo workspace (the SA:MP client; Windows DLL target)
 exclude = ["samp-rs"]
 
+[profile.release]
+# Thin LTO improves cross-crate optimisation in the browser WASM build.
+lto = "thin"
+codegen-units = 4
+
 [workspace.package]
 edition = "2024"
 license = "UNLICENSED"
