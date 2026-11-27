@@ -110,11 +110,14 @@ async function opfsStore() {
         last = Math.max(last, b);
       }
       data.flush();
-      // Preserve bitmap entries between non-adjacent blocks in this batch.
-      const bits = new Uint8Array(last - first + 1);
-      map.read(bits, { at: first });
-      for (const { b } of blocks) bits[b - first] = 1;
-      map.write(bits, { at: first });
+      // Write only contiguous bitmap runs, so gaps with previously cached blocks stay intact.
+      const sorted = blocks.map(({ b }) => b).sort((a, b) => a - b);
+      for (let i = 0; i < sorted.length;) {
+        let end = i + 1;
+        while (end < sorted.length && sorted[end] === sorted[end - 1] + 1) end++;
+        map.write(new Uint8Array(end - i).fill(1), { at: sorted[i] });
+        i = end;
+      }
       map.flush();
     },
     async getMeta(name) {
