@@ -262,20 +262,18 @@
     to { transform: translateX(275%); }
   }
   #nvidia-splash {
-    width: min(640px, 92vw);
-    aspect-ratio: 16 / 9;
+    width: min(480px, 92vw);
+    aspect-ratio: 8 / 5;
     overflow: hidden;
-    border: 3px solid #25321d;
-    outline: 1px solid #000;
-    background: #050805;
+    background: #fff;
     box-shadow: 0 12px 45px rgba(0,0,0,.8);
-    image-rendering: pixelated;
   }
   #nvidia-card {
     display: block;
     width: 100%;
     height: 100%;
-    image-rendering: pixelated;
+    object-fit: contain;
+    image-rendering: auto;
   }
   body.boot-loading #corner, body.boot-loading #cache,
   body.boot-splash #corner, body.boot-splash #cache { visibility: hidden; }
@@ -435,7 +433,7 @@
       <div id="boot-track"><span></span></div>
     </div>
     <div id="nvidia-splash" hidden>
-      <canvas id="nvidia-card" width="320" height="180" role="img" aria-label="NVIDIA — The way it's meant to be played"></canvas>
+      <img id="nvidia-card" width="480" height="300" alt="NVIDIA — The way it's meant to be played">
     </div>
   </div>
   <div id="corner">
