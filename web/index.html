@@ -119,6 +119,72 @@
   .option span { display: flex; flex-direction: column; gap: 3px; }
   .option strong { color: #e7e1ce; font-size: 14px; font-weight: 700; }
   .option small { color: var(--muted); font-size: 12px; }
+  #performance-options {
+    padding: 15px 17px;
+    border: 1px solid #414432;
+    border-left: 4px solid var(--olive);
+    border-radius: 2px;
+    background: #1d2018;
+  }
+  .performance-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .performance-head strong {
+    color: #e8e2ce;
+    font: 700 13px "Arial Narrow", Arial, sans-serif;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+  .performance-head span {
+    color: #928d78;
+    font: 10px "Courier New", monospace;
+    text-transform: uppercase;
+  }
+  .performance-checks {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 13px;
+  }
+  .performance-checks .option strong { font-size: 13px; }
+  .performance-checks .option small { font-size: 11px; }
+  .performance-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 15px;
+    padding-top: 13px;
+    border-top: 1px solid #3a3d2f;
+  }
+  .performance-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: #bcb69d;
+    font: 700 10px "Arial Narrow", Arial, sans-serif;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+  .performance-field select {
+    width: 100%;
+    min-height: 37px;
+    padding: 7px 9px;
+    border: 1px solid #555842;
+    border-radius: 2px;
+    color: #e4deca;
+    background: #11130f;
+    font: 12px Arial, sans-serif;
+    letter-spacing: normal;
+    text-transform: none;
+  }
+  #performance-note {
+    margin: 11px 0 0;
+    color: #928d78;
+    font: 10px/1.45 "Courier New", monospace;
+  }
   button, .folder-button {
     min-height: 39px;
     padding: 8px 14px;
@@ -371,6 +437,8 @@
     .brand { padding-left: 14px; }
     h1 { font-size: clamp(31px, 10vw, 47px); }
     .launch-card { padding: 17px; }
+    .performance-head { align-items: flex-start; flex-direction: column; gap: 4px; }
+    .performance-grid { grid-template-columns: 1fr; }
     .card-head, .card-actions { align-items: stretch; flex-direction: column; gap: 14px; }
     #status { max-width: 100%; text-align: left; }
     #run-game { width: 100%; }
@@ -408,6 +476,47 @@
       </label>
       <button id="run-game" type="button" disabled>Run Game</button>
     </div>
+  </section>
+
+  <section id="performance-options" aria-label="Performance settings">
+    <div class="performance-head">
+      <strong>Performance options</strong>
+      <span>Low-memory PC tuning</span>
+    </div>
+    <div class="performance-checks">
+      <label class="option" for="performance-mode">
+        <input id="performance-mode" type="checkbox" checked>
+        <span>
+          <strong>Low-end performance mode</strong>
+          <small>Less grass, shadows, blur and distant detail; lower RAM use. Keeps the game resolution and normal population.</small>
+        </span>
+      </label>
+      <label class="option" for="population-saver">
+        <input id="population-saver" type="checkbox">
+        <span>
+          <strong>Fewer pedestrians and traffic</strong>
+          <small>Extra CPU relief by disabling ambient peds, random traffic and parked-car generators.</small>
+        </span>
+      </label>
+    </div>
+    <div class="performance-grid">
+      <label class="performance-field" for="render-resolution">
+        Render resolution
+        <select id="render-resolution">
+          <option value="default">Game default</option>
+          <option value="640x480">640 × 480 · lower GPU load</option>
+        </select>
+      </label>
+      <label class="performance-field" for="fps-limit">
+        Frame-rate limit
+        <select id="fps-limit">
+          <option value="0" selected>Uncapped · default</option>
+          <option value="30">30 FPS</option>
+          <option value="60">60 FPS</option>
+        </select>
+      </label>
+    </div>
+    <p id="performance-note">The frame rate is not capped unless you choose a limit. Lower resolution is also optional.</p>
   </section>
 
   <details id="alternate-source">
