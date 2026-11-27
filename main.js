@@ -307,10 +307,17 @@ async function start(files) {
   if (stub !== 'none') env.SA_GAME_STUB = stub ?? DEFAULT_STUBS;
   for (const [k, v] of params) if (k.startsWith('SA_')) env[k] = v;
   // The launcher controls are passed into the WebAssembly host before GPU creation and game boot.
-  env.SA_GAME_PERFORMANCE = $('performance-mode').checked ? '1' : '0';
-  env.SA_GAME_PERFORMANCE_POPULATION = $('population-saver').checked ? '1' : '0';
-  env.SA_GAME_FRAME_LIMIT = $('fps-limit').value;
-  if ($('render-resolution').value !== 'default') {
+  // Explicit SA_GAME_* URL options remain available for developer/test overrides.
+  if (!params.has('SA_GAME_PERFORMANCE')) {
+    env.SA_GAME_PERFORMANCE = $('performance-mode').checked ? '1' : '0';
+  }
+  if (!params.has('SA_GAME_PERFORMANCE_POPULATION')) {
+    env.SA_GAME_PERFORMANCE_POPULATION = $('population-saver').checked ? '1' : '0';
+  }
+  if (!params.has('SA_GAME_FRAME_LIMIT')) {
+    env.SA_GAME_FRAME_LIMIT = $('fps-limit').value;
+  }
+  if (!params.has('SA_GAME_RESOLUTION') && $('render-resolution').value !== 'default') {
     env.SA_GAME_RESOLUTION = $('render-resolution').value;
   }
   if (params.get('auto') === '1') env.SA_WEB_AUTO_INPUT = '1';
