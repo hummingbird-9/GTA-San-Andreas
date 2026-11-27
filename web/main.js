@@ -204,12 +204,11 @@ function startLoader(files) {
     const m = ev.data;
     if (m.type !== 'cache') return;
     window.saGame.cache = m;
-    const pct = m.total ? ((100 * m.cached) / m.total).toFixed(1) : '0';
     $('cache').hidden = false;
-    $('cachestatus').textContent = `cache (${m.store}): ${mib(m.cached)} of ${mib(m.total)} (${pct}%) on this device, ` +
-      `${mib(m.net)} downloaded this session${m.flight ? `, ${m.flight} requests in flight` : ''}` +
+    $('cachestatus').textContent = `cache (${m.store}): ${mib(m.cached)} saved · ${mib(m.net)} downloaded this session · ${mib(m.total)} total game data` +
+      `${m.flight ? ` · ${m.flight} requests active` : ''}` +
       `${m.storeError ? `; not kept: ${m.storeError}` : ''}`;
-    $('download').textContent = m.downloadAll ? 'Stop downloading' : m.cached >= m.total ? 'All files cached' : 'Download everything (offline cache)';
+    $('download').textContent = m.downloadAll ? 'Stop offline download' : m.cached >= m.total ? 'Full offline copy ready' : 'Download all for offline play';
     $('download').disabled = !m.downloadAll && m.cached >= m.total;
     downloading = m.downloadAll;
   };
