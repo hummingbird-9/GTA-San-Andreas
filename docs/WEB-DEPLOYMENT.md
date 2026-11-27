@@ -32,9 +32,12 @@ need to be committed and pushed in multiple batches. The importer reports the to
 
 From the repository root:
 
-    python3 -m http.server 8000 --bind 127.0.0.1
+    tools/web/serve.sh --web . --port 8000
 
-Open http://localhost:8000/. The launch screen checks for the bundled game data and enables **Run Game** when the
+Open http://localhost:8000/. The project server adds the COOP/COEP headers needed for cross-origin isolation.
+Those headers enable the SharedArrayBuffer bridge between the game worker and the OPFS cache. A plain
+`python -m http.server` does not add them, so synchronous reads fall back to direct network requests and the
+persistent cache cannot accelerate those reads. In the browser console, `crossOriginIsolated` should be `true`. The launch screen checks for the bundled game data and enables **Run Game** when the
 manifest is valid. Choose **Skip intro mission** only when you want to bypass the intro; it is off by default.
 Click **Run Game** to open the game in browser fullscreen. The engine's default bindings are Left Shift to sprint and Space to jump (the browser passes physical key
 scan codes through unchanged); vertical mouse movement is inverted, and **0** toggles the engine log. The HUD retains cache download, mute/volume,
