@@ -306,6 +306,13 @@ async function start(files) {
   const stub = params.get('stub');
   if (stub !== 'none') env.SA_GAME_STUB = stub ?? DEFAULT_STUBS;
   for (const [k, v] of params) if (k.startsWith('SA_')) env[k] = v;
+  // The launcher controls are passed into the WebAssembly host before GPU creation and game boot.
+  env.SA_GAME_PERFORMANCE = $('performance-mode').checked ? '1' : '0';
+  env.SA_GAME_PERFORMANCE_POPULATION = $('population-saver').checked ? '1' : '0';
+  env.SA_GAME_FRAME_LIMIT = $('fps-limit').value;
+  if ($('render-resolution').value !== 'default') {
+    env.SA_GAME_RESOLUTION = $('render-resolution').value;
+  }
   if (params.get('auto') === '1') env.SA_WEB_AUTO_INPUT = '1';
   // ?mods=a,b: the WebAssembly mods mods/a/, mods/b/ of the server (tools/web/serve.sh --mods DIR; build with
   // FEATURES=mods; docs/mods/getting-started.md)
@@ -315,7 +322,11 @@ async function start(files) {
   const audioOut = await initAudio();
   const off = canvas.transferControlToOffscreen();
   const transfer = loaderPort ? [off, loaderPort] : [off];
-  worker.postMessage({ type: 'start', canvas: off, files, loaderPort, ioSab, ioStacks: params.get('io_stacks') === '1', cacheMb: Number(params.get('cache_mb') || 0), env, audio: audioOut, audioTap: params.get('audiotap') === '1', startInWorld: $('inworld').checked, backend: params.get('backend') ?? '', display: displaySize() }, transfer);
+  // 128 MiB instead of the 256 MiB default in the low-end profile. The IndexedDB cache stays enabled.
+  const cacheMb = params.has('cache_mb')
+    ? Number(params.get('cache_mb'))
+    : (env.SA_GAME_PERFORMANCE === '1' ? 128 : 0);
+  worker.postMessage({ type: 'start', canvas: off, files, loaderPort, ioSab, ioStacks: params.get('io_stacks') === '1', cacheMb, env, audio: audioOut, audioTap: params.get('audiotap') === '1', startInWorld: $('inworld').checked, backend: params.get('backend') ?? '', display: displaySize() }, transfer);
   canvas.focus();
 }
 
