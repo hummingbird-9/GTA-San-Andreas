@@ -102,13 +102,7 @@ async function opfsStore() {
     async writeRun(f, blocks) {
       if (!blocks.length) return;
       const { data, map } = await open(f);
-      let first = Infinity;
-      let last = -1;
-      for (const { b, buf } of blocks) {
-        data.write(new Uint8Array(buf), { at: b * BLOCK });
-        first = Math.min(first, b);
-        last = Math.max(last, b);
-      }
+      for (const { b, buf } of blocks) data.write(new Uint8Array(buf), { at: b * BLOCK });
       data.flush();
       // Write only contiguous bitmap runs, so gaps with previously cached blocks stay intact.
       const sorted = blocks.map(({ b }) => b).sort((a, b) => a - b);
