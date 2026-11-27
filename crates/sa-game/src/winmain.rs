@@ -312,6 +312,27 @@ pub fn game_state() -> u32 {
     rd::<u32>(GAME_STATE)
 }
 
+/// Applies the browser launcher's frame-pacing and LOD choices after the game's settings are loaded.
+/// `frame_limit` is 0 for uncapped or a supported explicit cap (30 / 60).
+pub fn apply_browser_frame_settings(frame_limit: u32, performance_mode: bool) {
+    match frame_limit {
+        30 | 60 => {
+            wr::<i32>(RS_FRAME_LIMIT, frame_limit as i32);
+            wr::<u8>(MENU_PREFS_FRAME_LIMITER, 1);
+        }
+        _ => {
+            // The browser build defaults to uncapped; Game::Idle has an idle-spin bypass for this path.
+            wr::<u8>(MENU_PREFS_FRAME_LIMITER, 0);
+        }
+    }
+    if performance_mode {
+        // The original visibility code reads these multipliers each time it updates the RenderWare camera.
+        // Reducing both cuts distant LOD/generation work without changing the back-buffer resolution.
+        GPtr::<f32>::from_addr(0xB6F118).write(0.72);
+        GPtr::<f32>::from_addr(0xB6F11C).write(0.72);
+    }
+}
+
 /// gGameState LOADING_STARTED: the iteration runs `CGame::Initialise` and the post-loading steps.
 pub const STATE_LOADING_STARTED: u32 = 8;
 /// `gGameState` IDLE (the game runs)
