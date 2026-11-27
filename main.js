@@ -333,7 +333,7 @@ async function start(files) {
   const cacheMb = params.has('cache_mb')
     ? Number(params.get('cache_mb'))
     : (env.SA_GAME_PERFORMANCE === '1' ? 128 : 0);
-  worker.postMessage({ type: 'start', canvas: off, files, loaderPort, ioSab, ioStacks: params.get('io_stacks') === '1', cacheMb, env, audio: audioOut, audioTap: params.get('audiotap') === '1', startInWorld: $('inworld').checked, backend: params.get('backend') ?? '', display: displaySize() }, transfer);
+  worker.postMessage({ type: 'start', canvas: off, files, loaderPort, ioSab, ioStacks: params.get('io_stacks') === '1', cacheMb, env, audio: audioOut, audioTap: params.get('audiotap') === '1', startInWorld: $('inworld').checked, backend: params.get('backend') ?? 'gl', display: displaySize() }, transfer);
   canvas.focus();
 }
 
