@@ -449,7 +449,6 @@ async function launchGame() {
   bootFinished = false;
   $('boot-overlay').hidden = false;
   $('boot-overlay').classList.remove('splash');
-  document.body.classList.add('boot-loading');
   $('boot-progress').hidden = false;
   $('nvidia-splash').hidden = true;
   document.body.classList.remove('boot-splash');
