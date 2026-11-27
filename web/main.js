@@ -34,6 +34,80 @@ function log(text, level = 'log') {
 
 const STATES = ['INITIAL', 'LOGO', 'PLAYING_LOGO', 'TITLE', 'PLAYING_INTRO', 'FRONTEND_LOADING', 'FRONTEND_LOADED',
   'FRONTEND_IDLE', 'LOADING_STARTED', 'IDLE', 'EXIT'];
+let bootFinished = false;
+
+function updateBootProgress(message = {}) {
+  if (bootFinished) return;
+  const amount = Math.max(0, Math.floor(Number(message.mib) || 0));
+  $('boot-amount').textContent = `${amount.toLocaleString('en-US')} MiB READ`;
+  $('boot-title').textContent = 'LOADING';
+  $('boot-activity').textContent = message.preload
+    ? `START-UP FILES · ${message.preload}`
+    : 'LOADING GAME DATA...';
+}
+
+function drawNvidiaSplash() {
+  const card = $('nvidia-card');
+  const ctx = card?.getContext('2d');
+  if (!ctx) return;
+  ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = '#050805';
+  ctx.fillRect(0, 0, 320, 180);
+  ctx.fillStyle = '#0c1309';
+  ctx.fillRect(7, 7, 306, 166);
+  ctx.strokeStyle = '#76b900';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(3, 3, 314, 174);
+
+  // A compact, low-resolution eye mark in the original green/black PC splash style.
+  ctx.save();
+  ctx.translate(58, 72);
+  ctx.strokeStyle = '#76b900';
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-37, 0);
+  ctx.bezierCurveTo(-15, -27, 25, -28, 42, 0);
+  ctx.bezierCurveTo(24, 27, -15, 27, -37, 0);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(5, 0, 15, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(5, 0, 5, 0, Math.PI * 2);
+  ctx.fillStyle = '#76b900';
+  ctx.fill();
+  ctx.restore();
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#76b900';
+  ctx.font = 'bold 38px Arial, sans-serif';
+  ctx.fillText('NVIDIA', 112, 82);
+  ctx.fillStyle = '#eef0e9';
+  ctx.font = 'bold 9px Arial, sans-serif';
+  ctx.fillText("THE WAY IT'S MEANT TO BE PLAYED", 113, 108);
+  ctx.fillStyle = '#a4b397';
+  ctx.font = '8px monospace';
+  ctx.fillText('PC GAMING', 113, 126);
+}
+
+function showNvidiaSplash() {
+  if (bootFinished) return;
+  bootFinished = true;
+  drawNvidiaSplash();
+  $('boot-progress').hidden = true;
+  $('nvidia-splash').hidden = false;
+  $('boot-overlay').hidden = false;
+  $('boot-overlay').classList.add('splash');
+  document.body.classList.add('boot-splash');
+  window.setTimeout(() => {
+    $('boot-overlay').hidden = true;
+    $('boot-overlay').classList.remove('splash');
+    document.body.classList.remove('boot-splash');
+  }, 2400);
+}
+
 window.saGame = { status: {}, logs: [], logBase: 0, snapshots: [], snapshot: () => worker?.postMessage({ type: 'snapshot' }),
   // evidence runs (tools/web/headless.mjs --teleport): the player to (x, y, z)
   teleport: (x, y, z, heading) => worker?.postMessage({ type: 'teleport', x, y, z, heading }) };
@@ -208,6 +282,7 @@ async function start(files) {
       window.saGame.snapshots.push({ state: m.state, iterations: m.iterations, png: b64 });
     } else if (m.type === 'progress') {
       window.saGame.progress = m;
+      updateBootProgress(m);
       const progressText = m.preload ? `fetching start-up files · ${m.preload}` : `loading · ${m.mib} MiB read`;
       statusEl.textContent = progressText;
       $('ministatus').textContent = progressText;
@@ -218,6 +293,13 @@ async function start(files) {
         document.documentElement.style.setProperty('--aspect', String(client[0] / client[1]));
       }
       const st = STATES[m.state] ?? m.state;
+      updateBootProgress(m);
+      if (m.error) {
+        $('boot-title').textContent = 'LOAD ERROR';
+        $('boot-amount').textContent = 'CHECK ENGINE LOG';
+        $('boot-activity').textContent = String(m.error).slice(0, 120);
+      }
+      if (!bootFinished && Number(m.state) === 9 && Number(m.presents) > 0) showNvidiaSplash();
       statusEl.textContent = m.error ? `error: ${m.error}` : m.done ? m.done :
         `${m.phase ?? ''} gGameState ${st}, ${m.iterations} iterations${m.blocked ? ` (${m.blocked} blocked)` : ''}, ${m.presents} in-game frames, ${m.mib} MiB read` +
         (m.io?.waits ? `, ${m.io.waits} reads waited for the network (${m.io.waitMs} ms)` : '');
@@ -363,6 +445,13 @@ async function launchGame() {
   $('run-game').disabled = true;
   $('run-game').textContent = 'Starting…';
   $('ministatus').textContent = 'Starting game…';
+  bootFinished = false;
+  $('boot-overlay').hidden = false;
+  $('boot-overlay').classList.remove('splash');
+  $('boot-progress').hidden = false;
+  $('nvidia-splash').hidden = true;
+  document.body.classList.remove('boot-splash');
+  updateBootProgress({ mib: 0 });
 
   // Reveal the stage first, then request real browser fullscreen directly from this button gesture.
   document.body.classList.add('game-active');
@@ -383,6 +472,8 @@ async function launchGame() {
     log(`could not start the game: ${e}`, 'error');
     statusEl.className = 'err';
     statusEl.textContent = `Could not start the game: ${e.message ?? e}`;
+    $('boot-overlay').hidden = true;
+    document.body.classList.remove('boot-splash');
     document.body.classList.remove('game-active');
     $('run-game').disabled = false;
     $('run-game').textContent = 'Try Again';
