@@ -97,10 +97,24 @@ async function opfsStore() {
       return buf.buffer;
     },
     async write(f, b, buf) {
+      await this.writeRun(f, [{ b, buf }]);
+    },
+    async writeRun(f, blocks) {
+      if (!blocks.length) return;
       const { data, map } = await open(f);
-      data.write(new Uint8Array(buf), { at: b * BLOCK });
+      let first = Infinity;
+      let last = -1;
+      for (const { b, buf } of blocks) {
+        data.write(new Uint8Array(buf), { at: b * BLOCK });
+        first = Math.min(first, b);
+        last = Math.max(last, b);
+      }
       data.flush();
-      map.write(new Uint8Array([1]), { at: b });
+      // Preserve bitmap entries between non-adjacent blocks in this batch.
+      const bits = new Uint8Array(last - first + 1);
+      map.read(bits, { at: first });
+      for (const { b } of blocks) bits[b - first] = 1;
+      map.write(bits, { at: first });
       map.flush();
     },
     async getMeta(name) {
@@ -160,7 +174,19 @@ async function idbStore() {
       return v ?? null;
     },
     async write(f, b, buf) {
-      await idbReq(tx('blocks', 'readwrite').put(buf, `${f.key}:${b}`));
+      await this.writeRun(f, [{ b, buf }]);
+    },
+    async writeRun(f, blocks) {
+      if (!blocks.length) return;
+      const transaction = db.transaction('blocks', 'readwrite');
+      const objectStore = transaction.objectStore('blocks');
+      const done = new Promise((resolve, reject) => {
+        transaction.oncomplete = resolve;
+        transaction.onerror = () => reject(transaction.error ?? new Error('IndexedDB write failed'));
+        transaction.onabort = () => reject(transaction.error ?? new Error('IndexedDB write aborted'));
+      });
+      for (const { b, buf } of blocks) objectStore.put(buf, `${f.key}:${b}`);
+      await done;
     },
     async getMeta(name) {
       return (await idbReq(tx('meta', 'readonly').get(`${this.metaName}-${name}`))) ?? null;
@@ -347,11 +373,11 @@ async function fetchRun(id, run, tries = 0) {
     const buf = await fetchFileRange(f, start, end);
     if (buf.byteLength !== end - start) throw new Error(`short answer (${buf.byteLength} of ${end - start} bytes)`);
     netBytes += buf.byteLength;
-    for (const b of run) {
+    const blocks = run.map((b) => {
       const from = b * BLOCK - start;
-      const part = buf.slice(from, Math.min(buf.byteLength, from + BLOCK));
-      await arrived(id, b, part);
-    }
+      return { b, buf: buf.slice(from, Math.min(buf.byteLength, from + BLOCK)) };
+    });
+    await arrivedRun(id, blocks);
   } catch (e) {
     if (tries < 3) {
       await new Promise((res) => setTimeout(res, 200 * (tries + 1)));
@@ -366,23 +392,29 @@ async function fetchRun(id, run, tries = 0) {
   }
 }
 
-// a block arrived (fetched, or from the game's worker after a synchronous read): persisted, then delivered
-async function arrived(id, b, buf, fromGame = false) {
+// A range arrived: persist its blocks as one storage batch, then deliver them to the game worker.
+async function arrivedRun(id, blocks, fromGame = false) {
   const f = files[id];
-  const k = key(id, b);
-  const s = state.get(k);
-  if (!f.have[b]) {
+  const fresh = blocks.filter(({ b }) => !f.have[b]);
+  if (fresh.length && store) {
     try {
-      await store?.write(f, b, buf);
-      if (store) f.have[b] = 1;
+      if (store.writeRun) await store.writeRun(f, fresh);
+      else for (const { b, buf } of fresh) await store.write(f, b, buf);
+      for (const { b } of fresh) f.have[b] = 1;
     } catch (e) {
-      // quota or a closed handle: keep going without persisting this block
+      // quota or a closed handle: keep going without persisting this batch
       if (!storeError) console.warn(`loader: ${store.kind} write failed: ${e}`);
       storeError = String(e);
     }
   }
-  if (s && !(fromGame && s.flight)) state.delete(k);
-  if (s?.deliver && !fromGame) send(id, b, buf);
+  for (const { b, buf } of blocks) {
+    const s = state.get(key(id, b));
+    if (s && !(fromGame && s.flight)) state.delete(key(id, b));
+    if (s?.deliver && !fromGame) send(id, b, buf);
+  }
+}
+async function arrived(id, b, buf, fromGame = false) {
+  await arrivedRun(id, [{ b, buf }], fromGame);
 }
 let storeError = null;
 
@@ -503,7 +535,7 @@ async function onSync(m) {
     Atomics.store(sync.hdr, 2, 0);
     Atomics.store(sync.hdr, 0, 1);
     Atomics.notify(sync.hdr, 0);
-    for (const p of parts) if (!p.cached) await arrived(m.id, p.b, p.buf, true);
+    await arrivedRun(m.id, parts.filter((p) => !p.cached).map(({ b, buf }) => ({ b, buf })), true);
     report();
     return;
   } catch (e) {
