@@ -172,24 +172,42 @@ async function idbStore() {
 }
 
 // ---------------------------------------------------------------- fetching ---
-// Physical pieces are fetched whole so this also works with static servers without HTTP Range support.
+// Prefer byte ranges so a 256 KiB game read does not download its entire 16 MiB physical piece.
+// Some static hosts ignore Range and return 200 with the complete object; retain that object in the
+// bounded physical cache, then slice it. This keeps the loader compatible with both kinds of host.
 const PHYSICAL_CACHE_LIMIT = 96 * 1024 * 1024;
 const physicalCache = new Map();
 const physicalPending = new Map();
 let physicalCacheBytes = 0;
-async function fetchPhysical(part) {
+async function fetchPhysicalRange(part, start, end) {
   const cached = physicalCache.get(part.url);
   if (cached) {
     physicalCache.delete(part.url);
     physicalCache.set(part.url, cached);
-    return cached;
+    return cached.subarray(start, end);
   }
-  if (physicalPending.has(part.url)) return physicalPending.get(part.url);
+  const requestKey = `${part.url}:${start}-${end}`;
+  if (physicalPending.has(requestKey)) return physicalPending.get(requestKey);
   const pending = (async () => {
-    const r = await fetch(part.url, { cache: 'no-store' });
+    const r = await fetch(part.url, {
+      cache: 'no-store',
+      headers: { Range: `bytes=${start}-${end - 1}` },
+    });
     if (!r.ok) throw new Error(`HTTP ${r.status} for ${part.url}`);
     const bytes = new Uint8Array(await r.arrayBuffer());
-    if (Number.isFinite(part.size) && bytes.byteLength !== part.size) throw new Error(`wrong size for ${part.url}: ${bytes.byteLength} of ${part.size}`);
+    if (r.status === 206) {
+      const expected = end - start;
+      const contentRange = r.headers.get('Content-Range') ?? '';
+      if (bytes.byteLength !== expected ||
+          (contentRange && !contentRange.startsWith(`bytes ${start}-${end - 1}/`))) {
+        throw new Error(`invalid byte range for ${part.url}: ${bytes.byteLength} bytes for ${start}-${end - 1}`);
+      }
+      return bytes;
+    }
+    if (r.status !== 200) throw new Error(`unexpected HTTP ${r.status} for ${part.url}`);
+    if (Number.isFinite(part.size) && bytes.byteLength !== part.size) {
+      throw new Error(`wrong size for ${part.url}: ${bytes.byteLength} of ${part.size}`);
+    }
     physicalCache.set(part.url, bytes);
     physicalCacheBytes += bytes.byteLength;
     while (physicalCacheBytes > PHYSICAL_CACHE_LIMIT && physicalCache.size > 1) {
@@ -197,10 +215,10 @@ async function fetchPhysical(part) {
       physicalCache.delete(oldUrl);
       physicalCacheBytes -= oldBytes.byteLength;
     }
-    return bytes;
+    return bytes.subarray(start, end);
   })();
-  physicalPending.set(part.url, pending);
-  try { return await pending; } finally { physicalPending.delete(part.url); }
+  physicalPending.set(requestKey, pending);
+  try { return await pending; } finally { physicalPending.delete(requestKey); }
 }
 async function fetchFileRange(file, start, end) {
   const out = new Uint8Array(end - start);
@@ -215,8 +233,8 @@ async function fetchFileRange(file, start, end) {
     const lo = Math.max(start, partStart);
     const hi = Math.min(end, partEnd);
     if (lo >= hi) continue;
-    const bytes = await fetchPhysical({ ...part, size: partSize });
-    out.set(bytes.subarray(lo - partStart, hi - partStart), lo - start);
+    const bytes = await fetchPhysicalRange({ ...part, size: partSize }, lo - partStart, hi - partStart);
+    out.set(bytes, lo - start);
     copied += hi - lo;
   }
   if (copied !== end - start) throw new Error(`split pieces do not cover ${file.path} bytes ${start}-${end}`);
