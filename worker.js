@@ -56,20 +56,32 @@ let startup = new Set();
 const PHYSICAL_CACHE_LIMIT = 96 * 1024 * 1024;
 const physicalCache = new Map();
 let physicalCacheBytes = 0;
-function fetchPhysicalSync(part) {
+function fetchPhysicalSyncRange(part, start, end) {
   const cached = physicalCache.get(part.url);
   if (cached) {
     physicalCache.delete(part.url);
     physicalCache.set(part.url, cached);
-    return cached;
+    return cached.subarray(start, end);
   }
   const xhr = new XMLHttpRequest();
   xhr.open('GET', part.url, false);
+  xhr.setRequestHeader('Range', `bytes=${start}-${end - 1}`);
   xhr.responseType = 'arraybuffer';
   xhr.send();
+  if (xhr.status === 206) {
+    const bytes = new Uint8Array(xhr.response);
+    const contentRange = xhr.getResponseHeader('Content-Range') ?? '';
+    if (bytes.byteLength !== end - start ||
+        (contentRange && !contentRange.startsWith(`bytes ${start}-${end - 1}/`))) {
+      throw new Error(`${part.url}: invalid byte-range response (${bytes.byteLength} bytes)`);
+    }
+    return bytes;
+  }
   if (xhr.status !== 200) throw new Error(`${part.url}: HTTP ${xhr.status}`);
   const bytes = new Uint8Array(xhr.response);
-  if (Number.isFinite(part.size) && bytes.byteLength !== part.size) throw new Error(`${part.url}: wrong size (${bytes.byteLength} of ${part.size})`);
+  if (Number.isFinite(part.size) && bytes.byteLength !== part.size) {
+    throw new Error(`${part.url}: wrong size (${bytes.byteLength} of ${part.size})`);
+  }
   physicalCache.set(part.url, bytes);
   physicalCacheBytes += bytes.byteLength;
   while (physicalCacheBytes > PHYSICAL_CACHE_LIMIT && physicalCache.size > 1) {
@@ -77,7 +89,7 @@ function fetchPhysicalSync(part) {
     physicalCache.delete(oldUrl);
     physicalCacheBytes -= oldBytes.byteLength;
   }
-  return bytes;
+  return bytes.subarray(start, end);
 }
 function syncFetch(f, start, end) {
   const out = new Uint8Array(end - start);
@@ -92,8 +104,8 @@ function syncFetch(f, start, end) {
     const lo = Math.max(start, partStart);
     const hi = Math.min(end, partEnd);
     if (lo >= hi) continue;
-    const bytes = fetchPhysicalSync({ ...part, size: partSize });
-    out.set(bytes.subarray(lo - partStart, hi - partStart), lo - start);
+    const bytes = fetchPhysicalSyncRange({ ...part, size: partSize }, lo - partStart, hi - partStart);
+    out.set(bytes, lo - start);
     copied += hi - lo;
   }
   if (copied !== end - start) throw new Error(`${f.path}: split pieces do not cover bytes ${start}-${end}`);
