@@ -321,7 +321,9 @@ pub fn apply_browser_frame_settings(frame_limit: u32, performance_mode: bool) {
             wr::<u8>(MENU_PREFS_FRAME_LIMITER, 1);
         }
         _ => {
-            // The browser build defaults to uncapped; Game::Idle has an idle-spin bypass for this path.
+            // The browser build defaults to uncapped. Raise the internal threshold too, so audio beat-sync
+            // cannot accidentally re-apply the saved 30 FPS limit when the menu limiter is disabled.
+            wr::<i32>(RS_FRAME_LIMIT, 1000);
             wr::<u8>(MENU_PREFS_FRAME_LIMITER, 0);
         }
     }
