@@ -46,67 +46,47 @@ function updateBootProgress(message = {}) {
     : 'LOADING GAME DATA...';
 }
 
-function drawNvidiaSplash() {
-  const card = $('nvidia-card');
-  const ctx = card?.getContext('2d');
-  if (!ctx) return;
-  ctx.imageSmoothingEnabled = false;
-  ctx.fillStyle = '#050805';
-  ctx.fillRect(0, 0, 320, 180);
-  ctx.fillStyle = '#0c1309';
-  ctx.fillRect(7, 7, 306, 166);
-  ctx.strokeStyle = '#76b900';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(3, 3, 314, 174);
-
-  // A compact, low-resolution eye mark in the original green/black PC splash style.
-  ctx.save();
-  ctx.translate(58, 72);
-  ctx.strokeStyle = '#76b900';
-  ctx.lineWidth = 6;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  ctx.beginPath();
-  ctx.moveTo(-37, 0);
-  ctx.bezierCurveTo(-15, -27, 25, -28, 42, 0);
-  ctx.bezierCurveTo(24, 27, -15, 27, -37, 0);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(5, 0, 15, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(5, 0, 5, 0, Math.PI * 2);
-  ctx.fillStyle = '#76b900';
-  ctx.fill();
-  ctx.restore();
-
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#76b900';
-  ctx.font = 'bold 38px Arial, sans-serif';
-  ctx.fillText('NVIDIA', 112, 82);
-  ctx.fillStyle = '#eef0e9';
-  ctx.font = 'bold 9px Arial, sans-serif';
-  ctx.fillText("THE WAY IT'S MEANT TO BE PLAYED", 113, 108);
-  ctx.fillStyle = '#a4b397';
-  ctx.font = '8px monospace';
-  ctx.fillText('PC GAMING', 113, 126);
-}
+// Load the exact 480x300 NVIDIA badge supplied for this game splash.
+// The base64 is split into small static files so it can be committed through GitHub's text-file API.
+const nvidiaAssetBase = new URL(import.meta.url.includes('/web/')
+  ? '../nvidia-splash/'
+  : './nvidia-splash/', import.meta.url);
+const nvidiaSplashReady = Promise.all(
+  Array.from({ length: 4 }, (_, index) => {
+    const name = `${String(index).padStart(2, '0')}.b64`;
+    return fetch(new URL(name, nvidiaAssetBase)).then((response) => {
+      if (!response.ok) throw new Error(`HTTP ${response.status} loading nvidia-splash/${name}`);
+      return response.text();
+    });
+  })
+).then((parts) => {
+  const base64 = parts.map((part) => part.trim()).join('');
+  if (base64.length !== 28156) throw new Error(`NVIDIA splash image is incomplete (${base64.length} base64 characters)`);
+  const image = $('nvidia-card');
+  image.src = `data:image/webp;base64,${base64}`;
+  return image.decode();
+});
 
 function showNvidiaSplash() {
   if (bootFinished) return;
   bootFinished = true;
-  drawNvidiaSplash();
-  $('boot-progress').hidden = true;
-  $('nvidia-splash').hidden = false;
-  $('boot-overlay').hidden = false;
-  $('boot-overlay').classList.add('splash');
-  document.body.classList.remove('boot-loading');
-  document.body.classList.add('boot-splash');
-  window.setTimeout(() => {
+  nvidiaSplashReady.then(() => {
+    $('boot-progress').hidden = true;
+    $('nvidia-splash').hidden = false;
+    $('boot-overlay').hidden = false;
+    $('boot-overlay').classList.add('splash');
+    document.body.classList.remove('boot-loading');
+    document.body.classList.add('boot-splash');
+    window.setTimeout(() => {
+      $('boot-overlay').hidden = true;
+      $('boot-overlay').classList.remove('splash');
+      document.body.classList.remove('boot-splash');
+    }, 2400);
+  }).catch((error) => {
+    log(`NVIDIA splash image could not load: ${error}`, 'error');
     $('boot-overlay').hidden = true;
-    $('boot-overlay').classList.remove('splash');
-    document.body.classList.remove('boot-splash');
-  }, 2400);
+    document.body.classList.remove('boot-loading');
+  });
 }
 
 window.saGame = { status: {}, logs: [], logBase: 0, snapshots: [], snapshot: () => worker?.postMessage({ type: 'snapshot' }),
