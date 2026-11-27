@@ -100,6 +100,7 @@ function showNvidiaSplash() {
   $('nvidia-splash').hidden = false;
   $('boot-overlay').hidden = false;
   $('boot-overlay').classList.add('splash');
+  document.body.classList.remove('boot-loading');
   document.body.classList.add('boot-splash');
   window.setTimeout(() => {
     $('boot-overlay').hidden = true;
@@ -448,9 +449,11 @@ async function launchGame() {
   bootFinished = false;
   $('boot-overlay').hidden = false;
   $('boot-overlay').classList.remove('splash');
+  document.body.classList.add('boot-loading');
   $('boot-progress').hidden = false;
   $('nvidia-splash').hidden = true;
   document.body.classList.remove('boot-splash');
+  document.body.classList.add('boot-loading');
   updateBootProgress({ mib: 0 });
 
   // Reveal the stage first, then request real browser fullscreen directly from this button gesture.
@@ -473,6 +476,7 @@ async function launchGame() {
     statusEl.className = 'err';
     statusEl.textContent = `Could not start the game: ${e.message ?? e}`;
     $('boot-overlay').hidden = true;
+    document.body.classList.remove('boot-loading');
     document.body.classList.remove('boot-splash');
     document.body.classList.remove('game-active');
     $('run-game').disabled = false;
