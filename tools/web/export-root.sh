@@ -17,7 +17,7 @@ done
 
 # These paths are intentionally relative so the same build works at / and at
 # a GitHub Pages project path such as /GTA-San-Andreas/.
-for file in index.html main.js worker.js loader.js audio-worklet.js mods.js; do
+for file in index.html main.js worker.js loader.js audio-worklet.js mods.js favicon.svg; do
   cp "$root/web/$file" "$root/$file"
 done
 
