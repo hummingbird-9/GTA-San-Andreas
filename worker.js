@@ -583,32 +583,39 @@ self.onmessage = async (ev) => {
       }
       break;
     case 'display':
-      if (phase === 'running') sa.set_display(m.w, m.h);
+      if (phase === 'running' && !stopped) sa.set_display(m.w, m.h);
       break;
     case 'key':
+      if (phase !== 'running' || stopped) break;
       sa.key(m.code, m.down, !!m.repeat);
       if (m.text) sa.text(m.text);
       break;
     case 'mouse':
+      if (phase !== 'running' || stopped) break;
       sa.mouse_move(m.dx, m.dy);
       break;
     case 'mousepos':
+      if (phase !== 'running' || stopped) break;
       sa.mouse_pos(m.x, m.y);
       break;
     case 'button':
+      if (phase !== 'running' || stopped) break;
       sa.mouse_button(m.button, m.down);
       break;
     case 'wheel':
+      if (phase !== 'running' || stopped) break;
       sa.wheel(m.lines);
       break;
     case 'snapshot':
       snapshotWanted = true;
       break;
     case 'teleport':
+      if (phase !== 'running' || stopped) break;
       // evidence runs (tools/web/headless.mjs --teleport): SA_GAME_TELEPORT a few iterations from now
       sa.set_env('SA_GAME_TELEPORT', `${sa.iterations() + 5}:${m.x}:${m.y}:${m.z}:${m.heading ?? 0}`);
       break;
     case 'blur':
+      if (phase !== 'running' || stopped) break;
       sa.blur();
       break;
     case 'audioState':
@@ -626,7 +633,7 @@ self.onmessage = async (ev) => {
       }
       if (audioTap) audioTap = [];
       const underruns = ring ? Atomics.load(ring.hdr, 3) : 0;
-      self.postMessage({ type: 'audioTap', pcm, underruns, state: sa.game_state() }, [pcm.buffer]);
+      self.postMessage({ type: 'audioTap', pcm, underruns, state: phase === 'running' && !stopped ? sa.game_state() : -1 }, [pcm.buffer]);
       break;
     }
   }
