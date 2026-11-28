@@ -1,5 +1,5 @@
 // The page (WEB-1): checks bundled game data, launches the full-screen session, and forwards keyboard and mouse input.
-// URL query: ?inworld=1 (skip the intro mission), ?backend=gl|webgpu, ?auto=1 (scripted Enter / SA_GAME_WALK, for unattended runs), any SA_* name
+// URL query: ?inworld=0 (play the intro mission; default skips it), ?backend=gl|webgpu, ?auto=1 (scripted Enter / SA_GAME_WALK, for unattended runs), any SA_* name
 // (SA_GAME_STUB, SA_GAME_WALK, SA_GAME_SCRIPT_SKIP, ...) is passed to the game as a development variable.
 // SA:MP is a mod: ?mods=samp[&proxy=ws://127.0.0.1:7781] (build with FEATURES=mods; docs/samp/README.md).
 // ?mods=NAME,...: load these WebAssembly mods from the server's mods/ (build with FEATURES=mods).
@@ -21,7 +21,7 @@ let selectedGameFiles = null;
 // 0x5efca0 turns off ped attractors, whose task tree is still being ported).
 const DEFAULT_STUBS = '0x421a50=0/0,!0x5efca0=0/4';
 
-if (params.get('inworld') === '1') $('inworld').checked = true;
+$('inworld').checked = params.get('inworld') !== '0';
 
 function log(text, level = 'log') {
   const line = document.createElement('div');
@@ -46,7 +46,7 @@ function updateBootProgress(message = {}) {
     : 'LOADING GAME DATA...';
 }
 
-// Load the exact 480x300 NVIDIA badge supplied for this game splash.
+// Decode the NVIDIA badge into a 320x200 buffer; CSS scales that low-res image to fill the window.
 // The base64 is split into small static files so it can be committed through GitHub's text-file API.
 const nvidiaAssetBase = new URL(import.meta.url.includes('/web/')
   ? '../nvidia-splash/'
@@ -59,12 +59,18 @@ const nvidiaSplashReady = Promise.all(
       return response.text();
     });
   })
-).then((parts) => {
+).then(async (parts) => {
   const base64 = parts.map((part) => part.trim()).join('');
   if (base64.length !== 28156) throw new Error(`NVIDIA splash image is incomplete (${base64.length} base64 characters)`);
-  const image = $('nvidia-card');
-  image.src = `data:image/webp;base64,${base64}`;
-  return image.decode();
+  const source = new Image();
+  source.src = `data:image/webp;base64,${base64}`;
+  await source.decode();
+  const canvas = $('nvidia-card');
+  const context = canvas.getContext('2d', { alpha: false });
+  if (!context) throw new Error('Could not create the low-resolution NVIDIA splash canvas');
+  context.imageSmoothingEnabled = false;
+  context.drawImage(source, 0, 0, canvas.width, canvas.height);
+  return canvas;
 });
 
 function showNvidiaSplash() {
