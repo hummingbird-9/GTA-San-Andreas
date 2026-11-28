@@ -13,6 +13,7 @@ const logEl = $('log');
 const statusEl = $('status');
 const params = new URLSearchParams(location.search);
 let worker = null;
+let gameInputReady = false;
 let bundledGameFiles = null;
 let selectedGameFiles = null;
 
@@ -274,6 +275,7 @@ async function start(files) {
       $('ministatus').textContent = progressText;
     } else if (m.type === 'status') {
       window.saGame.status = m;
+      gameInputReady = m.phase === 'running' && !m.error;
       if (m.client && (m.client[0] !== client[0] || m.client[1] !== client[1])) {
         client = m.client;
         document.documentElement.style.setProperty('--aspect', String(client[0] / client[1]));
@@ -460,6 +462,7 @@ async function launchGame() {
   $('run-game').textContent = 'Starting…';
   $('ministatus').textContent = 'Starting game…';
   bootFinished = false;
+  gameInputReady = false;
   $('boot-overlay').hidden = false;
   $('boot-overlay').classList.remove('splash');
   $('boot-progress').hidden = false;
@@ -522,14 +525,14 @@ function onKey(down) {
       if (down && !e.repeat) toggleLogs();
       return;
     }
-    if (!worker || PASS.has(e.code)) return;
+    if (!worker || !gameInputReady || PASS.has(e.code)) return;
     e.preventDefault();
     worker.postMessage({ type: 'key', code: e.code, down, repeat: e.repeat, text: down && e.key.length === 1 ? e.key : '' });
   };
 }
 window.addEventListener('keydown', onKey(true));
 window.addEventListener('keyup', onKey(false));
-window.addEventListener('blur', () => worker?.postMessage({ type: 'blur' }));
+window.addEventListener('blur', () => { if (worker && gameInputReady) worker.postMessage({ type: 'blur' }); });
 
 // the game's client size (its video mode; the worker's status reports it): the canvas keeps its aspect
 let client = [800, 600];
@@ -589,7 +592,7 @@ function gamePos(e) {
 // menus (gGameState other than IDLE): no pointer lock; the absolute position goes to the game as WM_MOUSEMOVE (the
 // menu draws its own cursor there, the OS cursor is hidden over the picture) and clicks are menu clicks.
 canvas.addEventListener('mousemove', (e) => {
-  if (worker && inMenu && document.pointerLockElement !== canvas) {
+  if (worker && gameInputReady && inMenu && document.pointerLockElement !== canvas) {
     const [x, y] = gamePos(e);
     worker.postMessage({ type: 'mousepos', x, y });
   }
@@ -599,7 +602,7 @@ canvas.addEventListener('mousemove', (e) => {
 // press (natively sa-game captures the pointer itself, no click reaches the game for it): otherwise capturing the mouse
 // in the world would also punch. Buttons reach the game only while the pointer is locked.
 canvas.addEventListener('mousedown', (e) => {
-  if (!worker) return;
+  if (!worker || !gameInputReady) return;
   if (document.pointerLockElement !== canvas) {
     if (inMenu) {
       const [x, y] = gamePos(e);
@@ -619,7 +622,7 @@ canvas.addEventListener('mousedown', (e) => {
 let lockWasOn = false;
 document.addEventListener('pointerlockchange', () => {
   const on = document.pointerLockElement === canvas;
-  if (lockWasOn && !on && !selfRelease && !inMenu && worker && document.hasFocus()) {
+  if (lockWasOn && !on && !selfRelease && !inMenu && worker && gameInputReady && document.hasFocus()) {
     worker.postMessage({ type: 'key', code: 'Escape', down: true, repeat: false, text: '' });
     setTimeout(() => worker?.postMessage({ type: 'key', code: 'Escape', down: false, repeat: false, text: '' }), 80);
   }
@@ -633,14 +636,14 @@ document.addEventListener('pointerlockerror', () => {
   $('mouse').textContent = 'mouse captured: no (the browser refused the pointer lock; click the picture again)';
 });
 document.addEventListener('mousemove', (e) => {
-  if (worker && document.pointerLockElement === canvas) {
+  if (worker && gameInputReady && document.pointerLockElement === canvas) {
     worker.postMessage({ type: 'mouse', dx: e.movementX, dy: -e.movementY });
     window.saGame.mouseX = (window.saGame.mouseX ?? 0) + e.movementX;
   }
 });
-window.addEventListener('mouseup', (e) => worker?.postMessage({ type: 'button', button: e.button, down: false }));
+window.addEventListener('mouseup', (e) => { if (worker && gameInputReady) worker.postMessage({ type: 'button', button: e.button, down: false }); });
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
-  worker?.postMessage({ type: 'wheel', lines: -Math.sign(e.deltaY) });
+  if (worker && gameInputReady) worker.postMessage({ type: 'wheel', lines: -Math.sign(e.deltaY) });
 }, { passive: false });
