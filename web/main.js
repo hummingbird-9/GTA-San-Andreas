@@ -287,7 +287,7 @@ async function start(files) {
         $('boot-amount').textContent = 'CHECK ENGINE LOG';
         $('boot-activity').textContent = String(m.error).slice(0, 120);
       }
-      if (!bootFinished && Number(m.state) === 9 && Number(m.presents) > 0) showNvidiaSplash();
+      if (!bootFinished && Number(m.state) === 7 && Number(m.allPresents) > 0) showNvidiaSplash();
       statusEl.textContent = m.error ? `error: ${m.error}` : m.done ? m.done :
         `${m.phase ?? ''} gGameState ${st}, ${m.iterations} iterations${m.blocked ? ` (${m.blocked} blocked)` : ''}, ${m.presents} in-game frames, ${m.mib} MiB read` +
         (m.io?.waits ? `, ${m.io.waits} reads waited for the network (${m.io.waitMs} ms)` : '');
