@@ -26,5 +26,5 @@ cp "$root/web/pkg/sa_game.js" "$root/pkg/sa_game.js"
 cp "$root/web/pkg/sa_game_bg.wasm" "$root/pkg/sa_game_bg.wasm"
 
 echo "Root browser site prepared."
-echo "Review and commit: index.html main.js worker.js loader.js audio-worklet.js mods.js pkg/"
+echo "Review and commit: index.html main.js worker.js loader.js audio-worklet.js mods.js favicon.svg favicon.ico pkg/"
 echo "GitHub Pages source: main / (root) (only after resolving the privacy warning in docs/WEB-DEPLOYMENT.md)."
