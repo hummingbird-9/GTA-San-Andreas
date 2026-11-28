@@ -98,6 +98,12 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         url = urllib.parse.urlparse(self.path)
+        # Some browsers request favicon.ico even when the page declares an SVG icon.
+        # Fall back to the bundled SVG rather than logging an avoidable 404.
+        if url.path == "/favicon.ico" and not os.path.isfile(os.path.join(Handler.web, "favicon.ico")):
+            self.path = "/favicon.svg"
+            super().do_GET()
+            return
         if Handler.game is not None and url.path == "/game-index.json":
             body = Handler.index
             self.send_response(200)
